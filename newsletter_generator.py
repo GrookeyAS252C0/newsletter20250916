@@ -221,7 +221,7 @@ class NewsletterGenerator:
         st.info("💎 Step 5: 日大一先生名言の取得")
         teacher_quote = None
         try:
-            teacher_quote = self.quotes_service.get_random_quote()
+            teacher_quote = self.quotes_service.get_random_quote(use_meigen_db=True)
             if teacher_quote:
                 st.info(f"✅ 本日の名言: {teacher_quote.teacher}先生の言葉を選択")
             else:
@@ -326,10 +326,7 @@ class NewsletterGenerator:
 {{ youtube }}
 -----
 
-5. 日大一先生名言集
------
 {{ teacher_quote }}
------
 
 6. 今日の学校案内（{{ 曜日 }}曜日のテーマ：{{ 曜日テーマ }}）
 -----

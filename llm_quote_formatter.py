@@ -210,9 +210,8 @@ class LLMQuoteFormatter:
             # どんな文脈で？を解釈
             context_interpretation = self._interpret_detailed_context(quote)
 
-            template = f"""5. 日大一・今日の名言
+            template = f"""5. 今日の名言：今年度の学校行事・広報イベントの中から、日大一に関係する人たちによる「日大一の文化」を表す言葉をご紹介します。
 -----
-今年度の学校行事・広報イベントの中から、日大一に関係する人たちによる名言をご紹介します。
 名言：{quote.quote}
 誰が？：{quote.teacher}
 いつ？：{when_context}

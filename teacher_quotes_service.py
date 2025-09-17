@@ -69,7 +69,7 @@ class TeacherQuotesService:
     def load_meigen_quotes(self) -> None:
         """名言データベースから名言を読み込み"""
         try:
-            self.meigen_quotes = self.meigen_converter.parse_quotes()
+            self.meigen_quotes = self.meigen_converter.parse_quotes(process_all=True)
             logger.info(f"名言データベースから{len(self.meigen_quotes)}件の名言を読み込みました")
         except Exception as e:
             logger.error(f"名言データベースの読み込みに失敗しました: {e}")

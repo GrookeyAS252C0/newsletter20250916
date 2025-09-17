@@ -7,6 +7,7 @@ import os
 import re
 import requests
 import time
+import base64
 from datetime import date
 from typing import List, Optional
 
@@ -1059,3 +1060,126 @@ class WeatherService:
             except json.JSONDecodeError:
                 st.error("JSON解析に失敗しました")
                 return None
+
+    def analyze_weather_screenshot(self, image_path: str, target_date: date) -> Optional[WeatherInfo]:
+        """スクリーンショットから天気情報を抽出してWeatherInfoオブジェクトを生成"""
+        try:
+            st.info("📷 スクリーンショットから天気情報を解析中...")
+
+            # 画像をbase64エンコード
+            if not os.path.exists(image_path):
+                st.error(f"画像ファイルが見つかりません: {image_path}")
+                return None
+
+            # ファイルサイズの確認（20MB制限）
+            file_size = os.path.getsize(image_path)
+            if file_size > 20 * 1024 * 1024:  # 20MB
+                st.error(f"ファイルサイズが大きすぎます: {file_size / (1024*1024):.1f}MB")
+                return None
+
+            # OpenAI APIキーの確認
+            if not self.client:
+                st.error("OpenAI APIクライアントが初期化されていません")
+                return None
+
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+            # OpenAI Vision APIで画像解析
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """あなたは天気予報データの専門的な解析者です。提供された天気予報のスクリーンショットから正確な気象データを抽出し、メルマガ用の文章形式で出力してください。
+
+以下の形式で応答してください：
+- 気温: 「最高XX度、最低XX度」の形式
+- 天気概況: 「晴れ」「曇り」「雨」など簡潔に
+- 湿度: 「XX-XX%」の形式（範囲で表示）
+- 風速: 「南西の風X-Xm/s」の形式
+- 降水確率: 「XX%」の形式（最も高い値を採用）
+- 快適具合: 「快適な」「暑い」「蒸し暑い」「肌寒い」など"""
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"{target_date.strftime('%Y年%m月%d日')}の天気情報をこのスクリーンショットから抽出してください。時間帯を総合して1日の概要として整理してください。"
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=500,
+                temperature=0.3
+            )
+
+            analysis_result = response.choices[0].message.content.strip()
+            st.success("✅ スクリーンショット解析完了")
+
+            # 解析結果をWeatherInfoオブジェクトに変換
+            weather_info = self._parse_screenshot_analysis(analysis_result)
+
+            if weather_info:
+                st.info(f"🌤️ 抽出完了: {weather_info.天気概況}, 気温{weather_info.気温}")
+                return weather_info
+            else:
+                st.warning("天気情報の構造化に失敗しました")
+                return None
+
+        except FileNotFoundError:
+            st.error(f"ファイルが見つかりません: {image_path}")
+            return None
+        except PermissionError:
+            st.error(f"ファイルアクセス権限がありません: {image_path}")
+            return None
+        except OSError as e:
+            st.error(f"ファイル読み込みエラー: {e}")
+            return None
+        except Exception as e:
+            st.error(f"スクリーンショット解析エラー: {e}")
+            return None
+
+    def _parse_screenshot_analysis(self, analysis_text: str) -> Optional[WeatherInfo]:
+        """解析テキストからWeatherInfoオブジェクトを生成"""
+        try:
+            # テキストから各要素を抽出
+            temperature = self._extract_field(analysis_text, ["気温", "温度"])
+            weather = self._extract_field(analysis_text, ["天気概況", "天気", "概況"])
+            humidity = self._extract_field(analysis_text, ["湿度"])
+            wind = self._extract_field(analysis_text, ["風速", "風"])
+            precipitation = self._extract_field(analysis_text, ["降水確率", "降水"])
+            comfort = self._extract_field(analysis_text, ["快適具合", "快適"])
+
+            return WeatherInfo(
+                気温=temperature or "詳細情報取得中",
+                天気概況=weather or "晴れ",
+                湿度=humidity or "詳細情報取得中",
+                風速=wind or "詳細情報取得中",
+                降水確率=precipitation or "0%",
+                快適具合=comfort or "快適な"
+            )
+
+        except Exception as e:
+            st.error(f"データ構造化エラー: {e}")
+            return None
+
+    def _extract_field(self, text: str, field_keywords: List[str]) -> Optional[str]:
+        """テキストから特定フィールドの値を抽出"""
+        import re
+
+        for keyword in field_keywords:
+            # 「キーワード: 値」や「キーワード：値」の形式を検索
+            pattern = rf"{keyword}\s*[:：]\s*([^\n]+)"
+            match = re.search(pattern, text)
+            if match:
+                return match.group(1).strip()
+
+        return None

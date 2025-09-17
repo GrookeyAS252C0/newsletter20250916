@@ -228,21 +228,20 @@ class LLMQuoteFormatter:
     def _interpret_when_context(self, quote: 'TeacherQuote') -> str:
         """「いつ？」の文脈を解釈"""
         prompt = f"""
-以下の教育現場での発言について、「いつ？」という質問に答える形で、発言のタイミングを簡潔に説明してください。
+以下の教育現場での発言について、「いつ？」という質問に答える形で、どのようなイベント・場面で発言されたかを簡潔に説明してください。
 
 発言: 「{quote.quote}」
 発言者: {quote.teacher}
 場面: {quote.scene}
 背景: {quote.background}
-日付: {quote.date}
 
 要件:
-- 30文字以内で簡潔に
-- 具体的な時期や状況を含める
+- 25文字以内で簡潔に
+- 具体的な日付は避け、イベントや場面を重視
 - 読者にとって分かりやすい表現
 - 創作せず、提供された情報のみを使用
 
-例: 「2025年6月の学校説明会にて」「中学3年修学旅行の事前指導で」
+例: 「学校説明会にて」「修学旅行の事前指導で」「イングリッシュキャンプの振り返りで」
 """
 
         try:
@@ -257,28 +256,28 @@ class LLMQuoteFormatter:
 
         except Exception as e:
             logger.error(f"いつ文脈解釈エラー: {e}")
-            return f"{quote.date}の{quote.scene}"
+            return f"{quote.scene}"
 
     def _interpret_detailed_context(self, quote: 'TeacherQuote') -> str:
         """「どんな文脈で？」を詳細に解釈"""
         prompt = f"""
-以下の教育現場での発言について、「どんな文脈で？」という質問に答える形で、発言の背景と意図を分かりやすく説明してください。
+以下の教育現場での発言について、「どんな文脈で？」という質問に答える形で、発言の背景と教育的意図を1つの文章で分かりやすく説明してください。
 
 発言: 「{quote.quote}」
-発言者: {quote.teacher}
 カテゴリ: {quote.category}
 場面: {quote.scene}
 背景: {quote.background}
 教育的価値: {quote.educational_value}
 
 要件:
-- 80文字以内
+- 60文字以内で1つの完結した文章
 - 発言の背景と教育的意図を含める
 - 受験生・保護者が理解しやすい表現
 - 創作せず、提供された情報をベースに
 - 落ち着いた丁寧な文体
+- 重複した内容は避ける
 
-例: 「学習習慣の大切さを伝える中で、生徒の成長を支援する教育方針として語られました」
+例: 「学習習慣の大切さを伝える教育方針として語られました」
 """
 
         try:
@@ -293,12 +292,12 @@ class LLMQuoteFormatter:
 
         except Exception as e:
             logger.error(f"詳細文脈解釈エラー: {e}")
-            return f"{quote.background} {quote.educational_value}"
+            return quote.educational_value
 
     def _create_newsletter_template_fallback(self, quote: 'TeacherQuote') -> str:
         """LLM利用不可時のフォールバック"""
-        when_context = f"{quote.date}の{quote.scene}"
-        context_interpretation = f"{quote.background} {quote.educational_value}"
+        when_context = quote.scene
+        context_interpretation = quote.educational_value
 
         template = f"""5. 日大一・今日の名言
 -----

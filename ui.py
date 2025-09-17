@@ -103,7 +103,7 @@ class NewsletterUI:
             
             debug_print("_setup_sidebar() 実行中...")
             # サイドバー設定（Google Calendar設定を含む）
-            publish_date, manual_issue_number, generate_button, self.calendar_config = self._setup_sidebar()
+            publish_date, manual_issue_number, generate_button, self.calendar_config, uploaded_screenshot = self._setup_sidebar()
             debug_print("_setup_sidebar() 完了")
             
             # NewsletterGeneratorを初期化（Google Calendar設定を含む）
@@ -121,7 +121,7 @@ class NewsletterUI:
             # メルマガ生成処理（サイドバーのボタンが押された時のみ）
             if generate_button:
                 debug_print("generate_button が押されました")
-                self._generate_and_display_newsletter(publish_date, manual_issue_number)
+                self._generate_and_display_newsletter(publish_date, manual_issue_number, uploaded_screenshot)
             else:
                 debug_print("generate_button は押されていません")
                 
@@ -210,11 +210,23 @@ class NewsletterUI:
         # 天気予報設定
         st.sidebar.subheader("🌐 天気予報設定")
         st.sidebar.info(f"📍 対象地域: 墨田区（東京地方）")
+
+        # スクリーンショットアップロード機能
+        st.sidebar.markdown("**📸 お天気スクリーンショット**")
+        uploaded_screenshot = st.sidebar.file_uploader(
+            "天気予報のスクリーンショットをアップロード（オプション）",
+            type=['png', 'jpg', 'jpeg'],
+            help="天気予報のスクリーンショットをアップロードすると、より正確な天気情報を抽出できます"
+        )
         
         # データ取得優先度
         st.sidebar.markdown("**🎯 データ取得優先度**")
-        st.sidebar.info("📅 当日データを最優先で取得")
-        st.sidebar.info("⚠️ 当日データが取得不可時は翌日データで代替・明示")
+        if uploaded_screenshot:
+            st.sidebar.success("📸 スクリーンショット解析を最優先で使用")
+            st.sidebar.info("⚠️ スクリーンショット解析失敗時はAPIフォールバック")
+        else:
+            st.sidebar.info("📅 当日データを最優先で取得")
+            st.sidebar.info("⚠️ 当日データが取得不可時は翌日データで代替・明示")
         
         # データソース
         st.sidebar.markdown("**📊 データソース（気象庁互換API）**")
@@ -237,7 +249,7 @@ class NewsletterUI:
             help="設定した内容でメルマガを生成します"
         )
         
-        return publish_date, manual_issue_number, generate_button, calendar_config
+        return publish_date, manual_issue_number, generate_button, calendar_config, uploaded_screenshot
     
     # [カレンダー設定の関数は先ほど作成したものをここに挿入]
     def _setup_calendar_settings(self) -> dict:
@@ -316,14 +328,31 @@ class NewsletterUI:
             st.info("📺 YouTube動画は「メルマガを生成」ボタンを押したときに取得されます")
     
     
-    def _generate_and_display_newsletter(self, publish_date: date, manual_issue_number: Optional[int]):
+    def _generate_and_display_newsletter(self, publish_date: date, manual_issue_number: Optional[int], uploaded_screenshot=None):
         """メルマガ生成と表示"""
         # 生成処理の開始を明確に表示
         st.success("🚀 メルマガ生成を開始します...")
-        
+
+        # アップロードされたスクリーンショットの処理
+        weather_screenshot_path = None
+        if uploaded_screenshot is not None:
+            import tempfile
+            import os
+
+            # 一時ファイルに保存
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_screenshot.type.split('/')[-1]}") as tmp_file:
+                tmp_file.write(uploaded_screenshot.getvalue())
+                weather_screenshot_path = tmp_file.name
+
+            st.success(f"📸 スクリーンショットが正常にアップロードされました: {uploaded_screenshot.name}")
+
         with st.spinner("🌐 複数の天気予報データソースから情報を取得中..."):
             try:
-                result = self.generator.generate_newsletter(publish_date, manual_issue_number)
+                result = self.generator.generate_newsletter(
+                    publish_date,
+                    manual_issue_number,
+                    weather_screenshot_path=weather_screenshot_path
+                )
                 
                 # 生成完了メッセージ
                 st.success("✅ メルマガ生成が完了しました！")
@@ -337,11 +366,18 @@ class NewsletterUI:
                 
                 with col2:
                     self._display_newsletter_content(result, publish_date)
-                    
+
             except Exception as e:
                 st.error(f"❌ メルマガ生成中にエラーが発生しました: {e}")
                 import traceback
                 st.error(f"詳細エラー: {traceback.format_exc()}")
+            finally:
+                # 一時ファイルのクリーンアップ
+                if weather_screenshot_path and os.path.exists(weather_screenshot_path):
+                    try:
+                        os.unlink(weather_screenshot_path)
+                    except Exception as e:
+                        st.warning(f"⚠️ 一時ファイルの削除に失敗: {e}")
     
     
     def _display_generation_details(self, result: Dict[str, Any]):

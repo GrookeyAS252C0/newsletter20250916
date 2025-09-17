@@ -235,9 +235,18 @@ class NewsletterGenerator:
         # 6. メルマガを生成
         st.info("📧 Step 6: メルマガコンテンツの生成")
         newsletter_content = self._generate_newsletter_content(
-            weather_text, schedule_events, event_events, youtube_videos, 
+            weather_text, schedule_events, event_events, youtube_videos,
             target_date, issue_number, teacher_quote
         )
+
+        # 7. 使用した名言を掲載済みとしてマーク
+        if teacher_quote:
+            # 名言IDを取得して掲載済みフラグを設定
+            quote_id = self._get_quote_id_from_teacher_quote(teacher_quote)
+            if quote_id:
+                self.quotes_service.mark_meigen_as_published(quote_id, issue_number)
+                st.info(f"✅ 名言ID {quote_id} を掲載済みとしてマーク（発行No.{issue_number}）")
+
         st.success("✅ メルマガ生成完了！")
         
         return {
@@ -256,7 +265,19 @@ class NewsletterGenerator:
                 'character_count': len(newsletter_content)
             }
         }
-    
+
+    def _get_quote_id_from_teacher_quote(self, teacher_quote) -> Optional[int]:
+        """TeacherQuoteから元の名言IDを取得"""
+        if not teacher_quote:
+            return None
+
+        # 名言内容で元のQuoteオブジェクトを検索
+        for quote_obj in self.quotes_service.meigen_quotes:
+            if quote_obj.quote == teacher_quote.quote:
+                return quote_obj.id
+
+        return None
+
     def _generate_newsletter_content(self, weather_text: str, schedule_events, 
                                    event_events, youtube_videos: List[YouTubeVideo],
                                    target_date: date, issue_number: int, teacher_quote=None) -> str:

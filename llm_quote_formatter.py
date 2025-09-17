@@ -100,6 +100,42 @@ class LLMQuoteFormatter:
             logger.error(f"LLM処理エラー: {e}")
             return self._fallback_format(quote)
 
+    def _remove_personal_names(self, text: str) -> str:
+        """テキストから個人名を除去する"""
+        import re
+
+        # 個人名が含まれた文全体を削除または修正
+        # 「○○先生は〜」や「○○先生による〜」等の形式を処理
+        text = re.sub(r'[一-龯]{2,4}先生は[^。]*。?', '', text)
+        text = re.sub(r'[一-龯]{2,4}先生が[^。]*。?', '', text)
+        text = re.sub(r'[一-龯]{2,4}先生による[^。]*。?', '', text)
+        text = re.sub(r'[一-龯]{2,4}先生を[^。]*。?', '', text)
+
+        # より幅広い個人名パターンを処理
+        text = re.sub(r'、[一-龯]{2,4}先生は[^、。]*', '', text)
+        text = re.sub(r'、[一-龯]{2,4}先生が[^、。]*', '', text)
+
+        # 「○○先生」の形式を「先生」に置換
+        text = re.sub(r'[一-龯]{2,4}先生', '先生', text)
+
+        # 「○○さん」の形式を除去
+        text = re.sub(r'[一-龯]{2,4}さん', '', text)
+
+        # 「○○による」「○○の」などの形式を「先生による」「先生の」に置換
+        text = re.sub(r'[一-龯]{2,4}(による|の|が|は)', r'先生\1', text)
+
+        # 重複した「先生の先生」等を修正
+        text = re.sub(r'先生の先生', '先生', text)
+        text = re.sub(r'先生が先生', '先生', text)
+
+        # 余分な空白や句読点を整理
+        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'。+', '。', text)
+        text = re.sub(r'^。+|。+$', '', text)
+        text = text.strip()
+
+        return text
+
     def _interpret_event_context(self, quote: 'TeacherQuote') -> str:
         """イベント文脈を受験生・保護者向けに解釈"""
         prompt = f"""
@@ -276,6 +312,7 @@ class LLMQuoteFormatter:
 - この学校を選ぶメリットや特色が分かる表現
 - 創作は一切せず、提供された情報のみを使用
 - 丁寧で信頼感のある文体
+- 個人名（先生の名前）は一切使用しない。「先生」「教員」「学年主任」等の役職のみ使用
 
 例: 「学校説明会での教育方針説明の場面で語られた言葉です。本校では中学1・2年生の基礎力育成を最重視し、提出物管理や小テストを通じて学習習慣を確実に身に付けさせる指導体制を整えています。日常の授業における細やかなフォローアップにより、生徒一人ひとりが着実に成長できる教育環境をご提供しております」
 """
@@ -297,7 +334,9 @@ class LLMQuoteFormatter:
 
             # 場面の説明（入試広報部視点）
             if quote.scene:
-                context_parts.append(f"{quote.scene}で語られた言葉です")
+                # 個人名を除去した場面の説明
+                scene_text = self._remove_personal_names(quote.scene)
+                context_parts.append(f"{scene_text}で語られた言葉です")
 
             # 背景・教育的価値を統合して入試広報部視点で説明を作成
             if quote.background and quote.educational_value:
@@ -308,7 +347,8 @@ class LLMQuoteFormatter:
                     context_parts.append(f"本校が重視する教育方針として、{quote.background.replace('この発言は、学校の教育方針に基づき、', '')}この指導により、{quote.educational_value}")
                 else:
                     # より詳細な説明を作成
-                    context_parts.append(f"本校の教育理念として、{quote.background}")
+                    background_clean = self._remove_personal_names(quote.background)
+                    context_parts.append(f"本校の教育理念として、{background_clean}")
                     if "基礎" in quote.educational_value or "習慣" in quote.educational_value:
                         context_parts.append(f"日常の授業における細やかな指導により、{quote.educational_value}")
                     else:
@@ -316,10 +356,11 @@ class LLMQuoteFormatter:
             else:
                 # 個別に処理
                 if quote.background:
-                    if "教育方針" in quote.background:
-                        context_parts.append(f"本校では{quote.background}")
+                    background_clean = self._remove_personal_names(quote.background)
+                    if "教育方針" in background_clean:
+                        context_parts.append(f"本校では{background_clean}")
                     else:
-                        context_parts.append(f"{quote.background}")
+                        context_parts.append(f"{background_clean}")
 
                 if quote.educational_value:
                     if "基礎" in quote.educational_value or "習慣" in quote.educational_value:
@@ -334,11 +375,15 @@ class LLMQuoteFormatter:
                 # より簡潔な形式で重要情報を保持
                 if quote.background and quote.educational_value:
                     if "教育方針" in quote.background and "基礎" in quote.educational_value:
-                        fallback_context = f"{quote.scene}で語られた言葉です。本校では基礎力育成を重視し、提出物管理や小テスト等を通じて学習習慣を確実に身に付けさせる指導体制を整えています。{quote.educational_value}"
+                        scene_clean = self._remove_personal_names(quote.scene)
+                        fallback_context = f"{scene_clean}で語られた言葉です。本校では基礎力育成を重視し、提出物管理や小テスト等を通じて学習習慣を確実に身に付けさせる指導体制を整えています。{quote.educational_value}"
                     else:
-                        fallback_context = f"{quote.scene}で語られた言葉です。{quote.background[:60]}。{quote.educational_value}"
+                        scene_clean = self._remove_personal_names(quote.scene)
+                        background_clean = self._remove_personal_names(quote.background[:60])
+                        fallback_context = f"{scene_clean}で語られた言葉です。{background_clean}。{quote.educational_value}"
                 else:
-                    fallback_context = f"{quote.scene}で語られた言葉で、{quote.educational_value}"
+                    scene_clean = self._remove_personal_names(quote.scene)
+                    fallback_context = f"{scene_clean}で語られた言葉で、{quote.educational_value}"
 
                 # それでも長い場合は最終調整
                 if len(fallback_context) > 180:
@@ -348,14 +393,16 @@ class LLMQuoteFormatter:
 
     def _create_newsletter_template_fallback(self, quote: 'TeacherQuote') -> str:
         """LLM利用不可時のフォールバック"""
-        when_context = quote.scene
+        when_context = self._remove_personal_names(quote.scene) if quote.scene else ""
 
         # 入試広報部視点での詳細な文脈説明を作成
         context_parts = []
 
         # 場面の説明（入試広報部視点）
         if quote.scene:
-            context_parts.append(f"{quote.scene}で語られた言葉です")
+            # 個人名を除去した場面の説明
+            scene_text = self._remove_personal_names(quote.scene)
+            context_parts.append(f"{scene_text}で語られた言葉です")
 
         # 背景・教育的価値を統合して入試広報部視点で説明を作成
         if quote.background and quote.educational_value:
@@ -363,10 +410,12 @@ class LLMQuoteFormatter:
             if "教育方針" in quote.background and ("基礎" in quote.educational_value or "習慣" in quote.educational_value):
                 context_parts.append(f"本校では中学1・2年生の基礎力育成を最重視し、提出物管理や小テスト等を通じて学習習慣を確実に身に付けさせる指導体制を整えています。{quote.educational_value}")
             elif "重要性" in quote.background:
-                context_parts.append(f"本校が重視する教育方針として、{quote.background.replace('この発言は、学校の教育方針に基づき、', '')}この指導により、{quote.educational_value}")
+                background_clean = self._remove_personal_names(quote.background.replace('この発言は、学校の教育方針に基づき、', ''))
+                context_parts.append(f"本校が重視する教育方針として、{background_clean}この指導により、{quote.educational_value}")
             else:
                 # より詳細な説明を作成
-                context_parts.append(f"本校の教育理念として、{quote.background}")
+                background_clean = self._remove_personal_names(quote.background)
+                context_parts.append(f"本校の教育理念として、{background_clean}")
                 if "基礎" in quote.educational_value or "習慣" in quote.educational_value:
                     context_parts.append(f"日常の授業における細やかな指導により、{quote.educational_value}")
                 else:
@@ -374,10 +423,11 @@ class LLMQuoteFormatter:
         else:
             # 個別に処理
             if quote.background:
-                if "教育方針" in quote.background:
-                    context_parts.append(f"本校では{quote.background}")
+                background_clean = self._remove_personal_names(quote.background)
+                if "教育方針" in background_clean:
+                    context_parts.append(f"本校では{background_clean}")
                 else:
-                    context_parts.append(f"{quote.background}")
+                    context_parts.append(f"{background_clean}")
 
             if quote.educational_value:
                 if "基礎" in quote.educational_value or "習慣" in quote.educational_value:
@@ -392,11 +442,15 @@ class LLMQuoteFormatter:
             # より簡潔な形式で重要情報を保持
             if quote.background and quote.educational_value:
                 if "教育方針" in quote.background and "基礎" in quote.educational_value:
-                    context_interpretation = f"{quote.scene}で語られた言葉です。本校では基礎力育成を重視し、提出物管理や小テスト等を通じて学習習慣を確実に身に付けさせる指導体制を整えています。{quote.educational_value}"
+                    scene_clean = self._remove_personal_names(quote.scene)
+                    context_interpretation = f"{scene_clean}で語られた言葉です。本校では基礎力育成を重視し、提出物管理や小テスト等を通じて学習習慣を確実に身に付けさせる指導体制を整えています。{quote.educational_value}"
                 else:
-                    context_interpretation = f"{quote.scene}で語られた言葉です。{quote.background[:60]}。{quote.educational_value}"
+                    scene_clean = self._remove_personal_names(quote.scene)
+                    background_clean = self._remove_personal_names(quote.background[:60])
+                    context_interpretation = f"{scene_clean}で語られた言葉です。{background_clean}。{quote.educational_value}"
             else:
-                context_interpretation = f"{quote.scene}で語られた言葉で、{quote.educational_value}"
+                scene_clean = self._remove_personal_names(quote.scene)
+                context_interpretation = f"{scene_clean}で語られた言葉で、{quote.educational_value}"
 
             # それでも長い場合は最終調整
             if len(context_interpretation) > 180:

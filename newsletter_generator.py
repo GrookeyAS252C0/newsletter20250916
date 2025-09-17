@@ -273,10 +273,10 @@ class NewsletterGenerator:
         
         youtube_text = self.formatter.format_youtube_for_newsletter(youtube_videos)
         
-        # 先生名言のフォーマット
+        # 先生名言のフォーマット（指定されたテンプレート形式）
         quote_text = ""
         if teacher_quote:
-            quote_text = self.quotes_service.format_quote_for_newsletter(teacher_quote)
+            quote_text = self.quotes_service.get_newsletter_template_format(teacher_quote)
         
         # 生成日時（日本時間）を取得
         generated_time = DateUtils.get_now_jst()

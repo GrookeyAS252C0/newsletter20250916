@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from src.utils.logging_config import logger
 from meigen_converter import MeigenConverter, Quote
+from llm_quote_formatter import LLMQuoteFormatter, FormattedQuote
 
 
 @dataclass
@@ -38,6 +39,7 @@ class TeacherQuotesService:
         self.quotes: List[TeacherQuote] = []
         self.meigen_converter = MeigenConverter()
         self.meigen_quotes: List[Quote] = []
+        self.llm_formatter = LLMQuoteFormatter()
         self.load_quotes()
         self.load_meigen_quotes()
     
@@ -256,3 +258,70 @@ class TeacherQuotesService:
     def mark_meigen_as_published(self, quote_id: int, newsletter_number: int):
         """名言データベースの名言を配信済みとしてマーク"""
         self.meigen_converter.mark_as_published(quote_id, newsletter_number)
+
+    def format_quote_for_parents(self, quote: TeacherQuote) -> FormattedQuote:
+        """
+        受験生・保護者向けに名言を魅力的にフォーマット
+
+        Args:
+            quote: フォーマットする名言
+
+        Returns:
+            FormattedQuote: LLMで解釈・フォーマットされた名言
+        """
+        return self.llm_formatter.format_quote_for_parents(quote)
+
+    def get_enhanced_newsletter_format(self, quote: TeacherQuote) -> str:
+        """
+        従来のメルマガ形式に加えて、LLM強化版も提供
+
+        Args:
+            quote: フォーマットする名言
+
+        Returns:
+            str: 受験生・保護者向けフォーマット済みテキスト
+        """
+        if not quote:
+            return "本日の名言は準備中です。"
+
+        try:
+            formatted_quote = self.format_quote_for_parents(quote)
+            return formatted_quote.formatted_display
+        except Exception as e:
+            logger.error(f"LLM名言フォーマットエラー: {e}")
+            # フォールバック：従来形式
+            return self.format_quote_for_newsletter(quote)
+
+    def get_newsletter_template_format(self, quote: TeacherQuote) -> str:
+        """
+        指定されたテンプレート形式で名言を表示
+
+        Args:
+            quote: フォーマットする名言
+
+        Returns:
+            str: 指定テンプレート形式の名言
+        """
+        if not quote:
+            return """5. 日大一・今日の名言
+-----
+今年度の学校行事・広報イベントの中から、日大一に関係する人たちによる名言をご紹介します。
+名言：本日の名言は準備中です
+誰が？：
+いつ？：
+どんな文脈で？：
+-----"""
+
+        try:
+            return self.llm_formatter.create_newsletter_template(quote)
+        except Exception as e:
+            logger.error(f"ニュースレターテンプレートフォーマットエラー: {e}")
+            # フォールバック：基本テンプレート
+            return f"""5. 日大一・今日の名言
+-----
+今年度の学校行事・広報イベントの中から、日大一に関係する人たちによる名言をご紹介します。
+名言：{quote.quote}
+誰が？：{quote.teacher}
+いつ？：{quote.date}の{quote.scene}
+どんな文脈で？：{quote.educational_value}
+-----"""

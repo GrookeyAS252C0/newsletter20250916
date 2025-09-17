@@ -163,7 +163,8 @@ class TeacherQuotesService:
         if not self.meigen_quotes:
             return None
 
-        unpublished_quotes = self.meigen_converter.get_unpublished_quotes()
+        # 未配信の名言を直接フィルタリング
+        unpublished_quotes = [q for q in self.meigen_quotes if not q.published]
         if not unpublished_quotes:
             logger.warning("未配信の名言がありません")
             return None

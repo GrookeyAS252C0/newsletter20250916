@@ -261,7 +261,7 @@ class LLMQuoteFormatter:
     def _interpret_detailed_context(self, quote: 'TeacherQuote') -> str:
         """「どんな文脈で？」を詳細に解釈"""
         prompt = f"""
-以下の教育現場での発言について、「どんな文脈で？」という質問に答える形で、発言の背景と教育的意図を1つの文章で分かりやすく説明してください。
+以下の教育現場での発言について、「どんな文脈で？」という質問に答える形で、この発言から読み取れる学校の教育環境や雰囲気を受験生・保護者に伝わるように詳しく説明してください。
 
 発言: 「{quote.quote}」
 カテゴリ: {quote.category}
@@ -270,14 +270,14 @@ class LLMQuoteFormatter:
 教育的価値: {quote.educational_value}
 
 要件:
-- 60文字以内で1つの完結した文章
-- 発言の背景と教育的意図を含める
-- 受験生・保護者が理解しやすい表現
-- 創作せず、提供された情報をベースに
+- 120文字以内で詳細な説明
+- この発言から分かる学校の教育環境、先生と生徒の関係性、学校の雰囲気を含める
+- 受験生・保護者がこの学校の魅力を感じられる表現
+- 創作は一切せず、提供された情報から類推できる内容のみ
 - 落ち着いた丁寧な文体
-- 重複した内容は避ける
+- 学校選びの参考になる具体的な情報
 
-例: 「学習習慣の大切さを伝える教育方針として語られました」
+例: 「文化祭に向けた準備の中で語られた言葉で、生徒一人ひとりの努力を大切にし、主体的な取り組みを支援する学校の教育姿勢が表れています。先生方が生徒の成長を温かく見守る環境があることが伝わります」
 """
 
         try:
@@ -292,12 +292,63 @@ class LLMQuoteFormatter:
 
         except Exception as e:
             logger.error(f"詳細文脈解釈エラー: {e}")
-            return quote.educational_value
+            # フォールバック：データベースの情報を組み合わせて学校の雰囲気を伝える
+            context_parts = []
+
+            # 場面の説明
+            if quote.scene:
+                context_parts.append(f"{quote.scene}で語られた言葉です")
+
+            # 背景情報から学校の教育姿勢を読み取る
+            if quote.background:
+                context_parts.append(f"{quote.background}")
+
+            # 教育的価値から受験生・保護者への意義を説明
+            if quote.educational_value:
+                educational_part = quote.educational_value
+                if "重要" in educational_part or "大切" in educational_part:
+                    context_parts.append(f"先生方が生徒の成長を大切に考える教育環境が表れており、{educational_part}")
+                elif "実践的" in educational_part or "具体的" in educational_part:
+                    context_parts.append(f"生徒に寄り添った実践的な指導を行う学校の姿勢が見え、{educational_part}")
+                else:
+                    context_parts.append(f"この発言からは、{educational_part}")
+
+            fallback_context = "。".join(context_parts)
+            # 文字数制限内に調整
+            if len(fallback_context) > 120:
+                fallback_context = f"{quote.scene}で語られた言葉で、{quote.educational_value}"
+
+            return fallback_context
 
     def _create_newsletter_template_fallback(self, quote: 'TeacherQuote') -> str:
         """LLM利用不可時のフォールバック"""
         when_context = quote.scene
-        context_interpretation = quote.educational_value
+
+        # 詳細な文脈説明を作成
+        context_parts = []
+
+        # 場面の説明
+        if quote.scene:
+            context_parts.append(f"{quote.scene}で語られた言葉です")
+
+        # 背景情報から学校の教育姿勢を読み取る
+        if quote.background:
+            context_parts.append(f"{quote.background}")
+
+        # 教育的価値から受験生・保護者への意義を説明
+        if quote.educational_value:
+            educational_part = quote.educational_value
+            if "重要" in educational_part or "大切" in educational_part:
+                context_parts.append(f"先生方が生徒の成長を大切に考える教育環境が表れており、{educational_part}")
+            elif "実践的" in educational_part or "具体的" in educational_part:
+                context_parts.append(f"生徒に寄り添った実践的な指導を行う学校の姿勢が見え、{educational_part}")
+            else:
+                context_parts.append(f"この発言からは、{educational_part}")
+
+        context_interpretation = "。".join(context_parts)
+        # 文字数制限内に調整
+        if len(context_interpretation) > 120:
+            context_interpretation = f"{quote.scene}で語られた言葉で、{quote.educational_value}"
 
         template = f"""5. 日大一・今日の名言
 -----

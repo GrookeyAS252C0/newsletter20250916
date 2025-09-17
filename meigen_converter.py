@@ -180,7 +180,7 @@ class MeigenConverter:
         return attrs
 
     def _determine_speaker_role(self, speaker: str, attrs: Dict[str, str]) -> str:
-        """発言者の属性を決定"""
+        """発言者の属性を決定（個人名は含めない）"""
         # 学生の場合
         if '生徒' in speaker or any('生徒' in v for v in attrs.values()):
             role_parts = []

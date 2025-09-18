@@ -17,26 +17,26 @@ class SidebarController(BaseUIController):
     def __init__(self):
         super().__init__()
     
-    def render(self) -> Tuple[date, Optional[int], bool, Dict]:
+    def render(self) -> Tuple[date, Optional[int], bool, Dict, Optional]:
         """サイドバーの描画"""
         st.sidebar.header("⚙️ メルマガ設定")
-        
+
         # 発行日設定
         publish_date = self._render_date_settings()
-        
+
         # 発行No.設定
         manual_issue_number = self._render_issue_number_settings(publish_date)
-        
+
         # Google Calendar設定
         calendar_config = self._render_calendar_settings()
-        
-        # 天気予報設定
-        self._render_weather_settings()
-        
+
+        # 天気予報設定（スクリーンショットアップロード含む）
+        uploaded_screenshot = self._render_weather_settings()
+
         # 生成ボタン
         generate_button = self._render_generate_button()
-        
-        return publish_date, manual_issue_number, generate_button, calendar_config
+
+        return publish_date, manual_issue_number, generate_button, calendar_config, uploaded_screenshot
     
     def _render_date_settings(self) -> date:
         """発行日設定の描画"""
@@ -113,14 +113,30 @@ class SidebarController(BaseUIController):
         """天気予報設定の描画"""
         st.sidebar.subheader("🌐 天気予報設定")
         st.sidebar.info("📍 対象地域: 墨田区（東京地方）")
-        
+
+        # スクリーンショットアップロード機能
+        st.sidebar.markdown("**📸 お天気スクリーンショット**")
+        uploaded_screenshot = st.sidebar.file_uploader(
+            "天気予報のスクリーンショットをアップロード（オプション）",
+            type=['png', 'jpg', 'jpeg'],
+            help="天気予報のスクリーンショットをアップロードすると、より正確な天気情報を抽出できます",
+            key="weather_screenshot_uploader"
+        )
+
+        # データ取得優先度
         st.sidebar.markdown("**🎯 データ取得優先度**")
-        st.sidebar.info("📅 当日データを最優先で取得")
-        st.sidebar.info("⚠️ 当日データが取得不可時は翌日データで代替・明示")
-        
+        if uploaded_screenshot:
+            st.sidebar.success("📸 スクリーンショット解析を最優先で使用")
+            st.sidebar.info("⚠️ スクリーンショット解析失敗時はAPIフォールバック")
+        else:
+            st.sidebar.info("📅 当日データを最優先で取得")
+            st.sidebar.info("⚠️ 当日データが取得不可時は翌日データで代替・明示")
+
         st.sidebar.markdown("**📊 データソース（気象庁互換API）**")
         st.sidebar.code("https://weather.tsukumijima.net/api/forecast?city=130010", language="text")
         st.sidebar.success("✅ 気象庁互換APIから公式データを取得")
+
+        return uploaded_screenshot
     
     def _render_generate_button(self) -> bool:
         """生成ボタンの描画"""

@@ -48,7 +48,7 @@ class MainUIController(BaseUIController):
                 return
             
             # サイドバー設定
-            publish_date, manual_issue_number, generate_button, self.calendar_config = self.sidebar_controller.render_with_error_handling()
+            publish_date, manual_issue_number, generate_button, self.calendar_config, uploaded_screenshot = self.sidebar_controller.render_with_error_handling()
             
             # NewsletterGenerator の初期化
             self._initialize_generator()
@@ -59,7 +59,7 @@ class MainUIController(BaseUIController):
             # メルマガ生成処理
             if generate_button:
                 logger.info("メルマガ生成ボタンが押されました")
-                self.content_controller.render_newsletter_generation(publish_date, manual_issue_number, self.generator)
+                self.content_controller.render_newsletter_generation(publish_date, manual_issue_number, self.generator, uploaded_screenshot)
             
             # 古いキャッシュのクリーンアップ（バックグラウンド処理）
             self._cleanup_cache()

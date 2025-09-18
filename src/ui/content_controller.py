@@ -130,13 +130,30 @@ class ContentController(BaseUIController):
         except Exception as e:
             self.show_error("月齢プレビューの表示に失敗", e)
     
-    def render_newsletter_generation(self, publish_date: date, manual_issue_number: Optional[int], generator: Any):
+    def render_newsletter_generation(self, publish_date: date, manual_issue_number: Optional[int], generator: Any, uploaded_screenshot=None):
         """メルマガ生成と表示"""
         st.success("🚀 メルマガ生成を開始します...")
-        
+
+        # アップロードされたスクリーンショットの処理
+        weather_screenshot_path = None
+        if uploaded_screenshot is not None:
+            import tempfile
+            import os
+
+            # 一時ファイルに保存
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_screenshot.type.split('/')[-1]}") as tmp_file:
+                tmp_file.write(uploaded_screenshot.getvalue())
+                weather_screenshot_path = tmp_file.name
+
+            st.success(f"📸 スクリーンショットが正常にアップロードされました: {uploaded_screenshot.name}")
+
         with st.spinner("🌐 複数の天気予報データソースから情報を取得中..."):
             try:
-                result = generator.generate_newsletter(publish_date, manual_issue_number)
+                result = generator.generate_newsletter(
+                    publish_date,
+                    manual_issue_number,
+                    weather_screenshot_path=weather_screenshot_path
+                )
                 self.show_success("メルマガ生成が完了しました！")
                 
                 col1, col2 = st.columns([1, 1])
@@ -146,9 +163,17 @@ class ContentController(BaseUIController):
                 
                 with col2:
                     self._render_newsletter_content(result, publish_date)
-                    
             except Exception as e:
                 self.show_error("メルマガ生成中にエラーが発生", e)
+            finally:
+                # 一時ファイルのクリーンアップ
+                if weather_screenshot_path and os.path.exists(weather_screenshot_path):
+                    try:
+                        os.unlink(weather_screenshot_path)
+                        logger.info(f"一時ファイルを削除しました: {weather_screenshot_path}")
+                    except Exception as e:
+                        logger.warning(f"一時ファイルの削除に失敗: {e}")
+                        self.show_warning(f"⚠️ 一時ファイルの削除に失敗: {e}")
     
     def _render_generation_details(self, result: Dict[str, Any]):
         """生成詳細情報の表示"""

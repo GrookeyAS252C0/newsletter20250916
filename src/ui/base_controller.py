@@ -42,4 +42,10 @@ class BaseUIController(ABC):
             return self.render()
         except Exception as e:
             self.show_error(f"{self.__class__.__name__}でエラーが発生", e)
+            # SidebarControllerの場合は適切なデフォルト値を返す
+            if hasattr(self, '_render_date_settings'):
+                from datetime import date
+                from utils import DateUtils
+                today = DateUtils.get_today_jst()
+                return today, None, False, {}, None
             return None

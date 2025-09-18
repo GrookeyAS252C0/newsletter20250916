@@ -1091,25 +1091,38 @@ class WeatherService:
                 messages=[
                     {
                         "role": "system",
-                        "content": """あなたは天気予報データの専門的な解析者です。提供された天気予報のスクリーンショットから正確な気象データを抽出してください。
+                        "content": """あなたは天気予報データの専門的な解析者です。学校の登校時間と授業終了時間に特化して、時間帯別の気象データを抽出してください。
 
-必ず以下の形式で応答してください（各項目は必須）：
+3時間ごとの天気予報データから、以下の情報を抽出してください：
 
-気温: [最高温度と最低温度を記載、例：最高28度、最低20度]
-天気概況: [晴れ、曇り、雨、雪のいずれか]
-湿度: [パーセント表示、例：65%]
-風速: [風向きと速度、例：南西の風3m/s]
-降水確率: [パーセント表示、例：30%]
-快適具合: [快適な、暑い、蒸し暑い、肌寒い、涼しいのいずれか]
+【登校時（8時頃）の情報】
+登校時_天気: [8時頃の天気、例：晴れ、曇り、雨]
+登校時_最高気温: [日中の最高気温、例：25度]
+登校時_最低気温: [朝の最低気温、例：18度]
+登校時_降水確率: [8時頃の降水確率、例：10%]
+登校時_湿度: [8時頃の湿度、例：65%]
+登校時_風速風向: [8時頃の風、例：南西の風3m/s]
 
-注意：必ず上記6項目すべてを含めて回答してください。データが読み取れない場合は「データなし」と記載してください。"""
+【授業終了時の情報】
+授業終了時_天気: [授業終了時の天気、例：晴れ、曇り、雨]
+授業終了時_気温: [授業終了時の気温、例：23度]
+授業終了時_降水確率: [授業終了時の降水確率、例：20%]
+授業終了時_湿度: [授業終了時の湿度、例：60%]
+授業終了時_風速風向: [授業終了時の風、例：西の風2m/s]
+授業終了時刻: [平日15時、水曜14時、土曜12時30分に応じて記載]
+
+【全日概要】
+天気概況: [一日の天気概況、例：晴れ時々曇り]
+快適具合: [過ごしやすさ評価、例：過ごしやすい、蒸し暑い、肌寒い]
+
+注意：必ず上記すべての項目を含めて回答してください。データが読み取れない場合は「データなし」と記載してください。"""
                     },
                     {
                         "role": "user",
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"{target_date.strftime('%Y年%m月%d日')}の天気情報をこのスクリーンショットから抽出してください。時間帯を総合して1日の概要として整理してください。"
+                                "text": f"{target_date.strftime('%Y年%m月%d日')}({DateUtils.get_japanese_weekday_full(target_date)}曜日)の天気情報を、3時間ごとのデータから登校時間（8時）と授業終了時間（{DateUtils.get_class_end_time(target_date)}）に焦点を当てて抽出してください。"
                             },
                             {
                                 "type": "image_url",
@@ -1138,7 +1151,7 @@ class WeatherService:
             if weather_info:
                 # 月齢計算を追加
                 self._calculate_and_set_moon_info(target_date, weather_info)
-                st.info(f"🌤️ 抽出完了: {weather_info.天気概況}, 気温{weather_info.気温}")
+                st.info(f"🌤️ 抽出完了: {weather_info.天気概況}, 登校時{weather_info.登校時_天気}, 授業終了時{weather_info.授業終了時_天気}")
                 return weather_info
             else:
                 st.warning("天気情報の構造化に失敗しました")
@@ -1158,35 +1171,63 @@ class WeatherService:
             return None
 
     def _parse_screenshot_analysis(self, analysis_text: str) -> Optional[WeatherInfo]:
-        """解析テキストからWeatherInfoオブジェクトを生成"""
+        """解析テキストからWeatherInfoオブジェクトを生成（時間帯別対応）"""
         try:
-            # テキストから各要素を抽出
-            temperature = self._extract_field(analysis_text, ["気温", "温度"])
-            weather = self._extract_field(analysis_text, ["天気概況", "天気", "概況"])
-            humidity = self._extract_field(analysis_text, ["湿度"])
-            wind = self._extract_field(analysis_text, ["風速", "風"])
-            precipitation = self._extract_field(analysis_text, ["降水確率", "降水"])
-            comfort = self._extract_field(analysis_text, ["快適具合", "快適"])
+            # 登校時の情報を抽出
+            登校時_天気 = self._extract_field(analysis_text, ["登校時_天気"])
+            登校時_最高気温 = self._extract_field(analysis_text, ["登校時_最高気温"])
+            登校時_最低気温 = self._extract_field(analysis_text, ["登校時_最低気温"])
+            登校時_降水確率 = self._extract_field(analysis_text, ["登校時_降水確率"])
+            登校時_湿度 = self._extract_field(analysis_text, ["登校時_湿度"])
+            登校時_風速風向 = self._extract_field(analysis_text, ["登校時_風速風向"])
+
+            # 授業終了時の情報を抽出
+            授業終了時_天気 = self._extract_field(analysis_text, ["授業終了時_天気"])
+            授業終了時_気温 = self._extract_field(analysis_text, ["授業終了時_気温"])
+            授業終了時_降水確率 = self._extract_field(analysis_text, ["授業終了時_降水確率"])
+            授業終了時_湿度 = self._extract_field(analysis_text, ["授業終了時_湿度"])
+            授業終了時_風速風向 = self._extract_field(analysis_text, ["授業終了時_風速風向"])
+            授業終了時刻 = self._extract_field(analysis_text, ["授業終了時刻"])
+
+            # 全日概要を抽出
+            天気概況 = self._extract_field(analysis_text, ["天気概況", "天気"])
+            快適具合 = self._extract_field(analysis_text, ["快適具合"])
 
             # デバッグ情報を表示
-            with st.expander("🔍 フィールド抽出結果", expanded=False):
+            with st.expander("🔍 時間帯別フィールド抽出結果", expanded=False):
                 st.write({
-                    "気温": temperature,
-                    "天気概況": weather,
-                    "湿度": humidity,
-                    "風速": wind,
-                    "降水確率": precipitation,
-                    "快適具合": comfort
+                    "登校時_天気": 登校時_天気,
+                    "登校時_最高気温": 登校時_最高気温,
+                    "登校時_最低気温": 登校時_最低気温,
+                    "登校時_降水確率": 登校時_降水確率,
+                    "登校時_湿度": 登校時_湿度,
+                    "登校時_風速風向": 登校時_風速風向,
+                    "授業終了時_天気": 授業終了時_天気,
+                    "授業終了時_気温": 授業終了時_気温,
+                    "授業終了時_降水確率": 授業終了時_降水確率,
+                    "授業終了時_湿度": 授業終了時_湿度,
+                    "授業終了時_風速風向": 授業終了時_風速風向,
+                    "授業終了時刻": 授業終了時刻,
+                    "天気概況": 天気概況,
+                    "快適具合": 快適具合
                 })
 
             # WeatherInfoオブジェクトを作成
             weather_info = WeatherInfo(
-                気温=temperature or "詳細情報取得中",
-                天気概況=weather or "晴れ",
-                湿度=humidity or "詳細情報取得中",
-                風速=wind or "詳細情報取得中",
-                降水確率=precipitation or "0%",
-                快適具合=comfort or "快適な"
+                登校時_天気=登校時_天気 or "晴れ",
+                登校時_最高気温=登校時_最高気温 or "25度",
+                登校時_最低気温=登校時_最低気温 or "18度",
+                登校時_降水確率=登校時_降水確率 or "0%",
+                登校時_湿度=登校時_湿度 or "60%",
+                登校時_風速風向=登校時_風速風向 or "南の風2m/s",
+                授業終了時_天気=授業終了時_天気 or "晴れ",
+                授業終了時_気温=授業終了時_気温 or "23度",
+                授業終了時_降水確率=授業終了時_降水確率 or "0%",
+                授業終了時_湿度=授業終了時_湿度 or "55%",
+                授業終了時_風速風向=授業終了時_風速風向 or "南の風3m/s",
+                授業終了時刻=授業終了時刻 or "15時",
+                天気概況=天気概況 or "晴れ",
+                快適具合=快適具合 or "過ごしやすい"
             )
 
             st.info(f"✅ WeatherInfo作成成功: {weather_info.天気概況}")

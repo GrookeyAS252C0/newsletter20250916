@@ -48,20 +48,28 @@ class NewsletterFormatter:
     """メルマガの整形を担当"""
     
     @staticmethod
-    def format_weather_for_newsletter(weather_info: WeatherInfo, target_date: date, 
+    def format_weather_for_newsletter(weather_info: WeatherInfo, target_date: date,
                                     heartwarming_message: str, moon_age: float = None, moon_phase_name: str = None) -> str:
-        """天気情報をメルマガ用の文章に整形（月齢情報付き）"""
+        """天気情報をメルマガ用の文章に整形（時間帯別・月齢情報付き）"""
         formatted_date = f"{target_date.month}月{target_date.day}日" + DateUtils.get_japanese_weekday(target_date)
-        
+
         # 月齢情報の表示部分を作成
         moon_info = ""
         if moon_age is not None and moon_phase_name:
             moon_info = f"\n\n【月齢：{moon_age:.1f}日（{moon_phase_name}）】"
-        
+
         return f"""
-{formatted_date}の天気は{weather_info.天気概況}です。気温は{weather_info.気温}となる予想です。
-湿度は{weather_info.湿度}で、風は{weather_info.風速}となっています。
-降水確率は{weather_info.降水確率}となっており、全体的に{weather_info.快適具合}一日になりそうです。{moon_info}
+{formatted_date}の天気は{weather_info.天気概況}です。
+
+【登校時間（8時頃）】
+天気：{weather_info.登校時_天気}、最高気温：{weather_info.登校時_最高気温}、最低気温：{weather_info.登校時_最低気温}
+降水確率：{weather_info.登校時_降水確率}、湿度：{weather_info.登校時_湿度}、風：{weather_info.登校時_風速風向}
+
+【授業終了時間（{weather_info.授業終了時刻}）】
+天気：{weather_info.授業終了時_天気}、気温：{weather_info.授業終了時_気温}
+降水確率：{weather_info.授業終了時_降水確率}、湿度：{weather_info.授業終了時_湿度}、風：{weather_info.授業終了時_風速風向}
+
+全体的に{weather_info.快適具合}一日になりそうです。{moon_info}
 
 {heartwarming_message}
 """.strip()

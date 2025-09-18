@@ -46,7 +46,19 @@ class DateUtils:
                 issue_count += 1
         
         return issue_count
-    
+
+    @staticmethod
+    def get_class_end_time(date_obj: date) -> str:
+        """曜日に応じた授業終了時刻を取得"""
+        weekday = date_obj.weekday()  # 0=月曜, 1=火曜, ..., 6=日曜
+
+        if weekday == 2:  # 水曜日
+            return "14時"
+        elif weekday == 5:  # 土曜日
+            return "12時30分"
+        else:  # 月火木金
+            return "15時"
+
     @staticmethod
     def get_today_jst() -> date:
         """日本時間（JST）で今日の日付を取得"""

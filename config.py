@@ -53,12 +53,25 @@ class AppConfig:
 
 
 class WeatherInfo(BaseModel):
-    """天気情報のデータ構造"""
-    気温: str = Field(description="最高気温と最低気温（例：最高25度、最低18度）")
-    湿度: str = Field(description="湿度の情報（例：65%）")
-    風速: str = Field(description="風の情報（例：南西の風3m/s）")
-    降水確率: str = Field(description="降水確率の情報（例：午前10%、午後20%）")
-    天気概況: str = Field(description="天気の概況（例：晴れ時々曇り）")
+    """天気情報のデータ構造（時間帯別登校・授業終了情報対応）"""
+    # 登校時間（8時）の情報
+    登校時_天気: str = Field(description="8時頃の天気（例：晴れ、曇り、雨）")
+    登校時_最高気温: str = Field(description="日中の最高気温（例：25度）")
+    登校時_最低気温: str = Field(description="朝の最低気温（例：18度）")
+    登校時_降水確率: str = Field(description="8時頃の降水確率（例：10%）")
+    登校時_湿度: str = Field(description="8時頃の湿度（例：65%）")
+    登校時_風速風向: str = Field(description="8時頃の風（例：南西の風3m/s）")
+
+    # 授業終了時間の情報（曜日により異なる）
+    授業終了時_天気: str = Field(description="授業終了時の天気（例：晴れ、曇り、雨）")
+    授業終了時_気温: str = Field(description="授業終了時の気温（例：23度）")
+    授業終了時_降水確率: str = Field(description="授業終了時の降水確率（例：20%）")
+    授業終了時_湿度: str = Field(description="授業終了時の湿度（例：60%）")
+    授業終了時_風速風向: str = Field(description="授業終了時の風（例：西の風2m/s）")
+    授業終了時刻: str = Field(description="授業終了時刻（例：15時、14時、12時30分）")
+
+    # 全日の概要
+    天気概況: str = Field(description="一日の天気概況（例：晴れ時々曇り）")
     快適具合: str = Field(description="過ごしやすさの評価（例：過ごしやすい、蒸し暑い、肌寒い）")
     月齢: str = Field(description="月の満ち欠けの状態（例：新月、上弦の月、満月、下弦の月）", default="")
     気圧状況: str = Field(description="気圧の状況（例：高気圧、低気圧、気圧の谷、気圧変化なし）", default="")

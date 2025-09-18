@@ -4,7 +4,7 @@
 
 import streamlit as st
 from datetime import date
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 
 from .base_controller import BaseUIController
 from ..utils.logging_config import logger
@@ -17,7 +17,7 @@ class SidebarController(BaseUIController):
     def __init__(self):
         super().__init__()
     
-    def render(self) -> Tuple[date, Optional[int], bool, Dict, Optional]:
+    def render(self) -> Tuple[date, Optional[int], bool, Dict[str, Any], Optional[Any]]:
         """サイドバーの描画"""
         st.sidebar.header("⚙️ メルマガ設定")
 
@@ -85,7 +85,7 @@ class SidebarController(BaseUIController):
         
         return manual_issue_number
     
-    def _render_calendar_settings(self) -> Dict:
+    def _render_calendar_settings(self) -> Dict[str, Any]:
         """Google Calendar設定の描画"""
         st.sidebar.subheader("📅 Google Calendar設定")
         

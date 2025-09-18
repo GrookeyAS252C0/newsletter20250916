@@ -1091,15 +1091,18 @@ class WeatherService:
                 messages=[
                     {
                         "role": "system",
-                        "content": """あなたは天気予報データの専門的な解析者です。提供された天気予報のスクリーンショットから正確な気象データを抽出し、メルマガ用の文章形式で出力してください。
+                        "content": """あなたは天気予報データの専門的な解析者です。提供された天気予報のスクリーンショットから正確な気象データを抽出してください。
 
-以下の形式で応答してください：
-- 気温: 「最高XX度、最低XX度」の形式
-- 天気概況: 「晴れ」「曇り」「雨」など簡潔に
-- 湿度: 「XX-XX%」の形式（範囲で表示）
-- 風速: 「南西の風X-Xm/s」の形式
-- 降水確率: 「XX%」の形式（最も高い値を採用）
-- 快適具合: 「快適な」「暑い」「蒸し暑い」「肌寒い」など"""
+必ず以下の形式で応答してください（各項目は必須）：
+
+気温: [最高温度と最低温度を記載、例：最高28度、最低20度]
+天気概況: [晴れ、曇り、雨、雪のいずれか]
+湿度: [パーセント表示、例：65%]
+風速: [風向きと速度、例：南西の風3m/s]
+降水確率: [パーセント表示、例：30%]
+快適具合: [快適な、暑い、蒸し暑い、肌寒い、涼しいのいずれか]
+
+注意：必ず上記6項目すべてを含めて回答してください。データが読み取れない場合は「データなし」と記載してください。"""
                     },
                     {
                         "role": "user",
@@ -1117,12 +1120,17 @@ class WeatherService:
                         ]
                     }
                 ],
-                max_tokens=500,
-                temperature=0.3
+                max_tokens=600,
+                temperature=0.1
             )
 
             analysis_result = response.choices[0].message.content.strip()
             st.success("✅ スクリーンショット解析完了")
+
+            # デバッグ情報を表示
+            with st.expander("🔍 解析結果の詳細", expanded=False):
+                st.text("LLMからの回答:")
+                st.code(analysis_result)
 
             # 解析結果をWeatherInfoオブジェクトに変換
             weather_info = self._parse_screenshot_analysis(analysis_result)
@@ -1160,7 +1168,19 @@ class WeatherService:
             precipitation = self._extract_field(analysis_text, ["降水確率", "降水"])
             comfort = self._extract_field(analysis_text, ["快適具合", "快適"])
 
-            return WeatherInfo(
+            # デバッグ情報を表示
+            with st.expander("🔍 フィールド抽出結果", expanded=False):
+                st.write({
+                    "気温": temperature,
+                    "天気概況": weather,
+                    "湿度": humidity,
+                    "風速": wind,
+                    "降水確率": precipitation,
+                    "快適具合": comfort
+                })
+
+            # WeatherInfoオブジェクトを作成
+            weather_info = WeatherInfo(
                 気温=temperature or "詳細情報取得中",
                 天気概況=weather or "晴れ",
                 湿度=humidity or "詳細情報取得中",
@@ -1169,8 +1189,13 @@ class WeatherService:
                 快適具合=comfort or "快適な"
             )
 
+            st.info(f"✅ WeatherInfo作成成功: {weather_info.天気概況}")
+            return weather_info
+
         except Exception as e:
             st.error(f"データ構造化エラー: {e}")
+            import traceback
+            st.error(f"詳細エラー: {traceback.format_exc()}")
             return None
 
     def _extract_field(self, text: str, field_keywords: List[str]) -> Optional[str]:
@@ -1178,10 +1203,22 @@ class WeatherService:
         import re
 
         for keyword in field_keywords:
-            # 「キーワード: 値」や「キーワード：値」の形式を検索
-            pattern = rf"{keyword}\s*[:：]\s*([^\n]+)"
-            match = re.search(pattern, text)
-            if match:
-                return match.group(1).strip()
+            # より柔軟なパターンマッチング
+            patterns = [
+                rf"{keyword}\s*[:：]\s*([^\n]+)",  # 基本形式
+                rf"{keyword}[:：]\s*([^\n]+)",    # スペースなし
+                rf"{keyword}\s+([^\n]+)",         # スペース区切り
+                rf"【{keyword}】\s*([^\n]+)",     # 括弧付き
+                rf"\*\*{keyword}\*\*\s*[:：]?\s*([^\n]+)"  # マークダウン形式
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    result = match.group(1).strip()
+                    # 不要な文字を除去
+                    result = re.sub(r'^[・\-\*\s]+', '', result)
+                    if result and result != "データなし":
+                        return result
 
         return None

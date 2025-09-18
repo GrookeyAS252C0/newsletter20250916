@@ -1222,3 +1222,23 @@ class WeatherService:
                         return result
 
         return None
+
+    def _calculate_and_set_moon_info(self, target_date: date, weather_info: WeatherInfo):
+        """月齢計算を実行してWeatherInfoに設定"""
+        try:
+            # 月齢情報を取得
+            moon_phase_text = self.get_moon_phase(target_date)
+
+            # WeatherInfoの月齢フィールドに設定
+            weather_info.月齢 = moon_phase_text
+
+            # 月齢数値も設定（latest_moon_ageから）
+            if hasattr(self, 'latest_moon_age') and self.latest_moon_age is not None:
+                st.info(f"🌙 月齢計算完了: {self.latest_moon_age:.1f}日")
+            else:
+                st.warning("⚠️ 月齢数値の取得に失敗")
+
+        except Exception as e:
+            st.error(f"月齢計算エラー: {e}")
+            # フォールバック値を設定
+            weather_info.月齢 = "月齢情報取得中"

@@ -105,11 +105,19 @@ def main():
     except Exception as e:
         import streamlit as st
         st.error(f"❌ アプリケーションの起動に失敗しました: {e}")
-        
-        # デバッグモードの場合は詳細エラーを表示
-        if os.getenv("DEBUG_MODE", "false").lower() == "true":
-            import traceback
-            st.error(f"詳細エラー: {traceback.format_exc()}")
+
+        # 詳細エラーを常に表示（デバッグのため）
+        import traceback
+        st.error(f"詳細エラー: {traceback.format_exc()}")
+
+        # エラーの型も表示
+        st.error(f"エラーの型: {type(e).__name__}")
+
+        # デバッグ情報
+        st.markdown("**デバッグ情報:**")
+        st.write(f"- Python バージョン: {sys.version}")
+        st.write(f"- 現在のディレクトリ: {os.getcwd()}")
+        st.write(f"- sys.path: {sys.path[:3]}...")  # 最初の3つのパスのみ表示
 
 
 if __name__ == "__main__":

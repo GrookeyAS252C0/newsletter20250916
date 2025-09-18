@@ -21,4 +21,5 @@ Thumbs.db
 .cache/
 
 # Claude specific
-.claude/
+.claude/venv/
+*.png

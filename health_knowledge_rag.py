@@ -413,11 +413,12 @@ class HealthKnowledgeRAG:
             # 統合メッセージを構築
             formatted_date = f"{target_date.month}月{target_date.day}日"
             
-            # 降水確率チェック
+            # 降水確率チェック（登校時を優先）
             rain_advice = ""
-            if weather_info.降水確率 and any(char.isdigit() for char in weather_info.降水確率):
+            rain_prob_text = weather_info.登校時_降水確率 or weather_info.授業終了時_降水確率 or ""
+            if rain_prob_text and any(char.isdigit() for char in rain_prob_text):
                 import re
-                numbers = re.findall(r'\d+', weather_info.降水確率)
+                numbers = re.findall(r'\d+', rain_prob_text)
                 if numbers and int(numbers[0]) >= 50:
                     rain_advice = "傘をお忘れなくお持ちください。"
             

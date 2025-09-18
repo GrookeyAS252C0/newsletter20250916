@@ -28,19 +28,25 @@ class TeacherQuote:
 class TeacherQuotesService:
     """日大一中先生名言サービス"""
 
-    def __init__(self, quotes_file_path: str = "transcript_quotes_balanced_detailed.txt"):
+    def __init__(self, quotes_file_path: str = "transcript_quotes_balanced_detailed.txt", use_legacy_quotes: bool = False):
         """
         初期化
 
         Args:
             quotes_file_path: 名言ファイルのパス
+            use_legacy_quotes: レガシーテキストファイルを使用するかどうか
         """
         self.quotes_file_path = quotes_file_path
         self.quotes: List[TeacherQuote] = []
         self.meigen_converter = MeigenConverter()
         self.meigen_quotes: List[Quote] = []
         self.llm_formatter = LLMQuoteFormatter()
-        self.load_quotes()
+
+        # 用途に応じて必要な方のみ読み込む
+        if use_legacy_quotes:
+            self.load_quotes()
+
+        # 名言データベースは常に読み込む（現在のメイン機能）
         self.load_meigen_quotes()
     
     def load_quotes(self) -> None:
@@ -81,8 +87,6 @@ class TeacherQuotesService:
             return None
         
         try:
-            lines = section.split('\n')
-            
             # 名言本文を抽出（「」内の文字列）
             quote_match = re.search(r'「(.+?)」', section)
             if not quote_match:

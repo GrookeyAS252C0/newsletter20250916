@@ -786,10 +786,14 @@ class WeatherService:
 天気情報：
 - 日付: {formatted_date}
 - 天気: {weather_info.天気概況}
-- 気温: {weather_info.気温}
-- 湿度: {weather_info.湿度}
-- 風速: {weather_info.風速}
-- 降水確率: {weather_info.降水確率}
+- 登校時の気温: {weather_info.登校時_最高気温}/{weather_info.登校時_最低気温}
+- 授業終了時の気温: {weather_info.授業終了時_気温}
+- 登校時の湿度: {weather_info.登校時_湿度}
+- 授業終了時の湿度: {weather_info.授業終了時_湿度}
+- 登校時の風: {weather_info.登校時_風速風向}
+- 授業終了時の風: {weather_info.授業終了時_風速風向}
+- 登校時の降水確率: {weather_info.登校時_降水確率}
+- 授業終了時の降水確率: {weather_info.授業終了時_降水確率}
 - 快適具合: {weather_info.快適具合}
 - 月の満ち欠け: {weather_info.月齢}
 - 気圧状況: {weather_info.気圧状況}
@@ -883,8 +887,8 @@ class WeatherService:
     def _get_weather_specific_guidance(self, weather_info: WeatherInfo) -> str:
         """天気条件に応じた具体的なガイダンスを生成"""
         weather = weather_info.天気概況.lower()
-        temp_info = weather_info.気温.lower()
-        rain_prob = weather_info.降水確率.lower()
+        temp_info = f"{weather_info.登校時_最高気温}/{weather_info.登校時_最低気温}".lower()
+        rain_prob = weather_info.登校時_降水確率.lower()
         comfort = weather_info.快適具合.lower()
         
         guidance = "天気条件に応じたメッセージガイダンス：\n"
@@ -1214,20 +1218,20 @@ class WeatherService:
 
             # WeatherInfoオブジェクトを作成
             weather_info = WeatherInfo(
-                登校時_天気=登校時_天気 or "晴れ",
-                登校時_最高気温=登校時_最高気温 or "25度",
-                登校時_最低気温=登校時_最低気温 or "18度",
-                登校時_降水確率=登校時_降水確率 or "0%",
-                登校時_湿度=登校時_湿度 or "60%",
-                登校時_風速風向=登校時_風速風向 or "南の風2m/s",
-                授業終了時_天気=授業終了時_天気 or "晴れ",
-                授業終了時_気温=授業終了時_気温 or "23度",
-                授業終了時_降水確率=授業終了時_降水確率 or "0%",
-                授業終了時_湿度=授業終了時_湿度 or "55%",
-                授業終了時_風速風向=授業終了時_風速風向 or "南の風3m/s",
-                授業終了時刻=授業終了時刻 or "15時",
-                天気概況=天気概況 or "晴れ",
-                快適具合=快適具合 or "過ごしやすい"
+                登校時_天気=登校時_天気 or "不明",
+                登校時_最高気温=登校時_最高気温 or "不明",
+                登校時_最低気温=登校時_最低気温 or "不明",
+                登校時_降水確率=登校時_降水確率 or "不明",
+                登校時_湿度=登校時_湿度 or "不明",
+                登校時_風速風向=登校時_風速風向 or "不明",
+                授業終了時_天気=授業終了時_天気 or "不明",
+                授業終了時_気温=授業終了時_気温 or "不明",
+                授業終了時_降水確率=授業終了時_降水確率 or "不明",
+                授業終了時_湿度=授業終了時_湿度 or "不明",
+                授業終了時_風速風向=授業終了時_風速風向 or "不明",
+                授業終了時刻=授業終了時刻 or "不明",
+                天気概況=天気概況 or "不明",
+                快適具合=快適具合 or "不明"
             )
 
             st.info(f"✅ WeatherInfo作成成功: {weather_info.天気概況}")
@@ -1282,4 +1286,4 @@ class WeatherService:
         except Exception as e:
             st.error(f"月齢計算エラー: {e}")
             # フォールバック値を設定
-            weather_info.月齢 = "月齢情報取得中"
+            weather_info.月齢 = "不明"

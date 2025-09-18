@@ -36,10 +36,11 @@ def test_screenshot_weather_analysis():
         if weather_info:
             print("✅ 解析成功!")
             print(f"天気概況: {weather_info.天気概況}")
-            print(f"気温: {weather_info.気温}")
-            print(f"湿度: {weather_info.湿度}")
-            print(f"風速: {weather_info.風速}")
-            print(f"降水確率: {weather_info.降水確率}")
+            print(f"登校時の天気: {weather_info.登校時_天気}")
+            print(f"登校時の最高気温: {weather_info.登校時_最高気温}")
+            print(f"登校時の最低気温: {weather_info.登校時_最低気温}")
+            print(f"授業終了時の天気: {weather_info.授業終了時_天気}")
+            print(f"授業終了時の気温: {weather_info.授業終了時_気温}")
             print(f"快適具合: {weather_info.快適具合}")
 
             # ハートウォーミングメッセージの生成テスト

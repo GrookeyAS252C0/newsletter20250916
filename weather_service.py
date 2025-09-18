@@ -1128,6 +1128,8 @@ class WeatherService:
             weather_info = self._parse_screenshot_analysis(analysis_result)
 
             if weather_info:
+                # 月齢計算を追加
+                self._calculate_and_set_moon_info(target_date, weather_info)
                 st.info(f"🌤️ 抽出完了: {weather_info.天気概況}, 気温{weather_info.気温}")
                 return weather_info
             else:

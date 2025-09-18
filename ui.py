@@ -211,28 +211,32 @@ class NewsletterUI:
         st.sidebar.subheader("🌐 天気予報設定")
         st.sidebar.info(f"📍 対象地域: 墨田区（東京地方）")
 
-        # スクリーンショットアップロード機能
-        st.sidebar.markdown("**📸 お天気スクリーンショット**")
+        # スクリーンショットアップロード機能（必須）
+        st.sidebar.markdown("**📸 お天気スクリーンショット（必須）**")
         uploaded_screenshot = st.sidebar.file_uploader(
-            "天気予報のスクリーンショットをアップロード（オプション）",
+            "天気予報のスクリーンショットをアップロード",
             type=['png', 'jpg', 'jpeg'],
-            help="天気予報のスクリーンショットをアップロードすると、より正確な天気情報を抽出できます"
+            help="天気予報のスクリーンショットをアップロードしてください（必須）"
         )
-        
-        # データ取得優先度
-        st.sidebar.markdown("**🎯 データ取得優先度**")
-        if uploaded_screenshot:
-            st.sidebar.success("📸 スクリーンショット解析を最優先で使用")
-            st.sidebar.info("⚠️ スクリーンショット解析失敗時はAPIフォールバック")
+
+        if not uploaded_screenshot:
+            st.sidebar.warning("⚠️ 天気予報のスクリーンショットが必要です")
         else:
-            st.sidebar.info("📅 当日データを最優先で取得")
-            st.sidebar.info("⚠️ 当日データが取得不可時は翌日データで代替・明示")
+            st.sidebar.success("✅ スクリーンショットがアップロードされました")
         
-        # データソース
-        st.sidebar.markdown("**📊 データソース（気象庁互換API）**")
-        st.sidebar.code("https://weather.tsukumijima.net/api/forecast?city=130010", language="text")
-        
-        st.sidebar.success("✅ 気象币互換APIから公式データを取得")
+        # データ取得方式
+        st.sidebar.markdown("**🎯 データ取得方式**")
+        if uploaded_screenshot:
+            st.sidebar.success("📸 スクリーンショット解析を使用")
+            st.sidebar.info("🌙 月齢・体調管理情報も自動計算")
+        else:
+            st.sidebar.error("❌ スクリーンショットが必要です")
+            st.sidebar.info("📸 天気予報のスクリーンショットをアップロードしてください")
+
+        # 解析システム
+        st.sidebar.markdown("**📊 解析システム**")
+        st.sidebar.info("🤖 OpenAI Vision API でスクリーンショット解析")
+        st.sidebar.info("🌙 高精度月齢計算システム")
         
         st.sidebar.success("✅ OpenAI APIキーが設定されています")
         

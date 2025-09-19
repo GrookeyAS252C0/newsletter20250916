@@ -1172,7 +1172,7 @@ class WeatherService:
             if weather_info:
                 # 月齢計算を追加
                 self._calculate_and_set_moon_info(target_date, weather_info)
-                st.info(f"🌤️ 抽出完了: {weather_info.天気概況}, 登校時{weather_info.登校時_天気}, 授業終了時{weather_info.授業終了時_天気}")
+                st.info(f"🌤️ 抽出完了: 登校時{weather_info.登校時_天気}, 授業終了時{weather_info.授業終了時_天気}")
                 return weather_info
             else:
                 st.warning("天気情報の構造化に失敗しました")
@@ -1250,7 +1250,7 @@ class WeatherService:
                 快適具合=快適具合 or "不明"
             )
 
-            st.info(f"✅ WeatherInfo作成成功: {weather_info.天気概況}")
+            st.info(f"✅ WeatherInfo作成成功: 登校時{weather_info.登校時_天気}, 下校時{weather_info.授業終了時_天気}")
             return weather_info
 
         except Exception as e:

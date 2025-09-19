@@ -51,6 +51,14 @@ class NewsletterFormatter:
     def format_weather_for_newsletter(weather_info: WeatherInfo, target_date: date,
                                     heartwarming_message: str, moon_age: float = None, moon_phase_name: str = None) -> str:
         """天気情報をメルマガ用の文章に整形（時間帯別・月齢情報付き）"""
+        try:
+            import streamlit as st
+            st.info(f"🔍 フォーマット開始: weather_info.登校時_天気 = '{weather_info.登校時_天気}'")
+            st.info(f"🔍 フォーマット開始: weather_info.授業終了時_天気 = '{weather_info.授業終了時_天気}'")
+            st.info(f"🔍 フォーマット開始: heartwarming_message = '{heartwarming_message}'")
+        except:
+            pass
+
         formatted_date = f"{target_date.month}月{target_date.day}日" + DateUtils.get_japanese_weekday(target_date)
 
         # 月齢情報の表示部分を作成
@@ -58,19 +66,43 @@ class NewsletterFormatter:
         if moon_age is not None and moon_phase_name:
             moon_info = f"\n\n【月齢：{moon_age:.1f}日（{moon_phase_name}）】"
 
-        return f"""
+        # 各フィールドの安全な取得
+        登校時_天気 = getattr(weather_info, '登校時_天気', '不明')
+        登校時_気温 = getattr(weather_info, '登校時_最高気温', '不明')
+        登校時_降水確率 = getattr(weather_info, '登校時_降水確率', '不明')
+        登校時_湿度 = getattr(weather_info, '登校時_湿度', '不明')
+        登校時_風速風向 = getattr(weather_info, '登校時_風速風向', '不明')
+
+        授業終了時_天気 = getattr(weather_info, '授業終了時_天気', '不明')
+        授業終了時_気温 = getattr(weather_info, '授業終了時_気温', '不明')
+        授業終了時_降水確率 = getattr(weather_info, '授業終了時_降水確率', '不明')
+        授業終了時_湿度 = getattr(weather_info, '授業終了時_湿度', '不明')
+        授業終了時_風速風向 = getattr(weather_info, '授業終了時_風速風向', '不明')
+        授業終了時刻 = getattr(weather_info, '授業終了時刻', '不明')
+
+        快適具合 = getattr(weather_info, '快適具合', '不明')
+
+        result = f"""
 【登校時間（8時頃）】
-天気：{weather_info.登校時_天気}、気温：{weather_info.登校時_最高気温}
-降水確率：{weather_info.登校時_降水確率}、湿度：{weather_info.登校時_湿度}、風：{weather_info.登校時_風速風向}
+天気：{登校時_天気}、気温：{登校時_気温}
+降水確率：{登校時_降水確率}、湿度：{登校時_湿度}、風：{登校時_風速風向}
 
-【授業終了時間（{weather_info.授業終了時刻}）】
-天気：{weather_info.授業終了時_天気}、気温：{weather_info.授業終了時_気温}
-降水確率：{weather_info.授業終了時_降水確率}、湿度：{weather_info.授業終了時_湿度}、風：{weather_info.授業終了時_風速風向}
+【授業終了時間（{授業終了時刻}）】
+天気：{授業終了時_天気}、気温：{授業終了時_気温}
+降水確率：{授業終了時_降水確率}、湿度：{授業終了時_湿度}、風：{授業終了時_風速風向}
 
-全体的に{weather_info.快適具合}一日になりそうです。{moon_info}
+全体的に{快適具合}一日になりそうです。{moon_info}
 
 {heartwarming_message}
 """.strip()
+
+        try:
+            import streamlit as st
+            st.info(f"🔍 フォーマット結果: '{result[:100]}...'")
+        except:
+            pass
+
+        return result
     
     @staticmethod
     def format_schedule_for_newsletter(schedule_events: List[str]) -> str:

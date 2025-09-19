@@ -1066,9 +1066,9 @@ class WeatherService:
                 return None
 
     def analyze_weather_screenshot(self, image_path: str, target_date: date) -> Optional[WeatherInfo]:
-        """スクリーンショットから天気情報を抽出してWeatherInfoオブジェクトを生成"""
+        """スクリーンショットから天気情報を抽出してWeatherInfoオブジェクトを生成（3回実行で精度向上）"""
         try:
-            st.info("📷 スクリーンショットから天気情報を解析中...")
+            st.info("📷 スクリーンショットから天気情報を解析中（3回実行で精度向上）...")
 
             # 画像をbase64エンコード
             if not os.path.exists(image_path):
@@ -1089,13 +1089,19 @@ class WeatherService:
             with open(image_path, "rb") as image_file:
                 base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
-            # OpenAI Vision APIで画像解析
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """あなたは天気予報データの専門的な解析者です。学校の登校時間と授業終了時間に特化して、時間帯別の気象データを抽出してください。
+            # 3回の解析を実行
+            analysis_results = []
+
+            for attempt in range(3):
+                st.info(f"🔄 解析実行中... ({attempt + 1}/3)")
+
+                # OpenAI Vision APIで画像解析
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": """あなたは天気予報データの専門的な解析者です。学校の登校時間と授業終了時間に特化して、時間帯別の気象データを抽出してください。
 
 3時間ごとの天気予報データから、以下の情報を抽出してください：
 
@@ -1119,38 +1125,50 @@ class WeatherService:
 天気概況: [一日の天気概況、例：晴れ時々曇り]
 快適具合: [過ごしやすさ評価、例：過ごしやすい、蒸し暑い、肌寒い]
 
-注意：必ず上記すべての項目を含めて回答してください。データが読み取れない場合は「データなし」と記載してください。"""
-                    },
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"{target_date.strftime('%Y年%m月%d日')}({DateUtils.get_japanese_weekday_full(target_date)}曜日)の天気情報を、3時間ごとのデータから登校時間（8時）と授業終了時間（{DateUtils.get_class_end_time(target_date)}）に焦点を当てて抽出してください。"
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{base64_image}"
+注意：必ず上記すべての項目を含めて回答してください。データが読み取れない場合は「データなし」と記載してください。数値データは可能な限り正確に読み取ってください。"""
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"{target_date.strftime('%Y年%m月%d日')}({DateUtils.get_japanese_weekday_full(target_date)}曜日)の天気情報を、3時間ごとのデータから登校時間（8時）と授業終了時間（{DateUtils.get_class_end_time(target_date)}）に焦点を当てて正確に抽出してください。データの読み取り精度を最大限に高めてください。"
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{base64_image}"
+                                    }
                                 }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=600,
-                temperature=0.1
-            )
+                            ]
+                        }
+                    ],
+                    max_tokens=600,
+                    temperature=0.05  # より一貫性のある結果のために温度を下げる
+                )
 
-            analysis_result = response.choices[0].message.content.strip()
-            st.success("✅ スクリーンショット解析完了")
+                analysis_result = response.choices[0].message.content.strip()
+                analysis_results.append(analysis_result)
+
+                # 短い待機時間を設ける
+                time.sleep(0.5)
+
+            # 最も一貫性のある結果を選択（または最後の結果を使用）
+            final_analysis = self._select_best_analysis(analysis_results)
+
+            st.success("✅ スクリーンショット解析完了（3回実行）")
 
             # デバッグ情報を表示
-            with st.expander("🔍 解析結果の詳細", expanded=False):
-                st.text("LLMからの回答:")
-                st.code(analysis_result)
+            with st.expander("🔍 解析結果の詳細（3回実行）", expanded=False):
+                for i, result in enumerate(analysis_results):
+                    st.text(f"解析結果 {i+1}:")
+                    st.code(result)
+                    st.divider()
+                st.text("最終選択結果:")
+                st.code(final_analysis)
 
             # 解析結果をWeatherInfoオブジェクトに変換
-            weather_info = self._parse_screenshot_analysis(analysis_result)
+            weather_info = self._parse_screenshot_analysis(final_analysis)
 
             if weather_info:
                 # 月齢計算を追加
@@ -1267,6 +1285,69 @@ class WeatherService:
                         return result
 
         return None
+
+    def _select_best_analysis(self, analysis_results: List[str]) -> str:
+        """3つの解析結果から最も精度の高いものを選択"""
+        if not analysis_results:
+            return ""
+
+        # 各結果の品質スコアを計算
+        scored_results = []
+
+        for result in analysis_results:
+            score = self._calculate_analysis_score(result)
+            scored_results.append((score, result))
+
+        # スコアが最も高い結果を選択
+        scored_results.sort(key=lambda x: x[0], reverse=True)
+        best_result = scored_results[0][1]
+
+        st.info(f"🎯 最適な解析結果を選択（スコア: {scored_results[0][0]:.2f}）")
+
+        return best_result
+
+    def _calculate_analysis_score(self, analysis_text: str) -> float:
+        """解析結果の品質スコアを計算"""
+        score = 0.0
+
+        # 必須フィールドの存在チェック
+        required_fields = [
+            "登校時_天気", "登校時_最高気温", "登校時_最低気温", "登校時_降水確率",
+            "授業終了時_天気", "授業終了時_気温", "授業終了時_降水確率", "快適具合"
+        ]
+
+        for field in required_fields:
+            if field in analysis_text:
+                score += 1.0
+
+        # 数値データの存在をチェック（温度、湿度、降水確率）
+        import re
+
+        # 温度データ（度）
+        temp_matches = len(re.findall(r'\d+度', analysis_text))
+        score += min(temp_matches * 0.5, 2.0)  # 最大2点
+
+        # 降水確率（%）
+        rain_matches = len(re.findall(r'\d+%', analysis_text))
+        score += min(rain_matches * 0.3, 1.5)  # 最大1.5点
+
+        # 湿度データ
+        humidity_matches = len(re.findall(r'湿度.*?\d+%', analysis_text))
+        score += min(humidity_matches * 0.2, 1.0)  # 最大1点
+
+        # 風速データ
+        wind_matches = len(re.findall(r'\d+m/s|風.*?\d+', analysis_text))
+        score += min(wind_matches * 0.2, 1.0)  # 最大1点
+
+        # 「データなし」や「不明」の減点
+        missing_data_count = len(re.findall(r'データなし|不明', analysis_text, re.IGNORECASE))
+        score -= missing_data_count * 0.5
+
+        # 構造化された情報の評価
+        if "【" in analysis_text and "】" in analysis_text:
+            score += 1.0
+
+        return max(score, 0.0)  # 負の値を避ける
 
     def _calculate_and_set_moon_info(self, target_date: date, weather_info: WeatherInfo):
         """月齢計算を実行してWeatherInfoに設定"""

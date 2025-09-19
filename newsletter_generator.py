@@ -59,8 +59,6 @@ class NewsletterFormatter:
             moon_info = f"\n\n【月齢：{moon_age:.1f}日（{moon_phase_name}）】"
 
         return f"""
-{formatted_date}の天気は{weather_info.天気概況}です。
-
 【登校時間（8時頃）】
 天気：{weather_info.登校時_天気}、最高気温：{weather_info.登校時_最高気温}、最低気温：{weather_info.登校時_最低気温}
 降水確率：{weather_info.登校時_降水確率}、湿度：{weather_info.登校時_湿度}、風：{weather_info.登校時_風速風向}

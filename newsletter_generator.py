@@ -60,7 +60,7 @@ class NewsletterFormatter:
 
         return f"""
 【登校時間（8時頃）】
-天気：{weather_info.登校時_天気}、最高気温：{weather_info.登校時_最高気温}、最低気温：{weather_info.登校時_最低気温}
+天気：{weather_info.登校時_天気}、気温：{weather_info.登校時_最高気温}
 降水確率：{weather_info.登校時_降水確率}、湿度：{weather_info.登校時_湿度}、風：{weather_info.登校時_風速風向}
 
 【授業終了時間（{weather_info.授業終了時刻}）】

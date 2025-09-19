@@ -182,14 +182,19 @@ class NewsletterGenerator:
                 if weather_info:
                     st.success("✅ スクリーンショットから天気情報を正常に取得しました")
                     heartwarming_message = self.weather_service.generate_heartwarming_message(weather_info, target_date)
+                    st.info(f"🔍 デバッグ: heartwarming_message = '{heartwarming_message}'")
+
                     # 月齢データを取得
                     moon_age = self.weather_service.latest_moon_age
                     moon_phase_name = None
                     if moon_age is not None:
                         moon_phase_name = self.weather_service.get_moon_phase_name(moon_age)
+                    st.info(f"🔍 デバッグ: moon_age = {moon_age}, moon_phase_name = '{moon_phase_name}'")
+
                     weather_text = self.formatter.format_weather_for_newsletter(
                         weather_info, target_date, heartwarming_message, moon_age, moon_phase_name
                     )
+                    st.info(f"🔍 デバッグ: weather_text = '{weather_text[:200]}...' (先頭200文字)")
                 else:
                     st.error("❌ スクリーンショットの解析に失敗しました")
             except Exception as e:
@@ -232,6 +237,7 @@ class NewsletterGenerator:
         
         # 6. メルマガを生成
         st.info("📧 Step 6: メルマガコンテンツの生成")
+        st.info(f"🔍 デバッグ: 最終的なweather_text = '{weather_text}'")
         newsletter_content = self._generate_newsletter_content(
             weather_text, schedule_events, event_events, youtube_videos,
             target_date, issue_number, teacher_quote

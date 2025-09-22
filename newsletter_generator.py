@@ -38,7 +38,7 @@ from config import AppConfig, WeatherInfo, EventInfo, YouTubeVideo
 from data_loader import EventDataService
 from weather_service import WeatherService
 from youtube_service import YouTubeService
-from teacher_quotes_service import TeacherQuotesService
+# from teacher_quotes_service import TeacherQuotesService  # 削除: 名言機能は手動入力に変更
 from utils import DateUtils
 
 # 学校統合システムは削除済み
@@ -177,8 +177,8 @@ class NewsletterGenerator:
             
         self.formatter = NewsletterFormatter()
         
-        # 先生名言サービス
-        self.quotes_service = TeacherQuotesService()
+        # 先生名言サービスは削除: 手動入力に変更
+        # self.quotes_service = TeacherQuotesService()
         
         # 学校統合システムは削除済み
 
@@ -269,17 +269,9 @@ class NewsletterGenerator:
         else:
             st.info("YouTube APIが設定されていないため、動画情報をスキップします")
         
-        # 4. 先生名言の取得
-        st.info("💎 Step 5: 日大一先生名言の取得")
-        teacher_quote = None
-        try:
-            teacher_quote = self.quotes_service.get_random_quote(use_meigen_db=True)
-            if teacher_quote:
-                st.info(f"✅ 本日の名言: {teacher_quote.teacher}先生の言葉を選択")
-            else:
-                st.warning("名言データが見つかりませんでした")
-        except Exception as e:
-            st.warning(f"名言の取得に失敗: {e}")
+        # 4. 今日のひとこと（手動入力用）
+        st.info("💭 Step 5: 今日のひとこと（手動入力用の空セクション）")
+        teacher_quote = None  # 空のセクションとして処理
         
         # 5. 発行No.の決定
         issue_number = manual_issue_number if manual_issue_number is not None else DateUtils.get_issue_number(target_date)
@@ -292,13 +284,8 @@ class NewsletterGenerator:
             target_date, issue_number, teacher_quote
         )
 
-        # 7. 使用した名言を掲載済みとしてマーク
-        if teacher_quote:
-            # 名言IDを取得して掲載済みフラグを設定
-            quote_id = self._get_quote_id_from_teacher_quote(teacher_quote)
-            if quote_id:
-                self.quotes_service.mark_meigen_as_published(quote_id, issue_number)
-                st.info(f"✅ 名言ID {quote_id} を掲載済みとしてマーク（発行No.{issue_number}）")
+        # 7. 今日のひとこと管理（手動入力のため処理不要）
+        # 名言機能は削除されました
 
         st.success("✅ メルマガ生成完了！")
         
@@ -319,17 +306,8 @@ class NewsletterGenerator:
             }
         }
 
-    def _get_quote_id_from_teacher_quote(self, teacher_quote) -> Optional[int]:
-        """TeacherQuoteから元の名言IDを取得"""
-        if not teacher_quote:
-            return None
-
-        # 名言内容で元のQuoteオブジェクトを検索
-        for quote_obj in self.quotes_service.meigen_quotes:
-            if quote_obj.quote == teacher_quote.quote:
-                return quote_obj.id
-
-        return None
+    # 名言関連メソッドは削除（手動入力に変更）
+    # def _get_quote_id_from_teacher_quote(self, teacher_quote) -> Optional[int]:
 
     def _generate_newsletter_content(self, weather_text: str, schedule_events, 
                                    event_events, youtube_videos: List[YouTubeVideo],
@@ -347,10 +325,8 @@ class NewsletterGenerator:
         
         youtube_text = self.formatter.format_youtube_for_newsletter(youtube_videos)
         
-        # 先生名言のフォーマット（指定されたテンプレート形式）
-        quote_text = ""
-        if teacher_quote:
-            quote_text = self.quotes_service.get_newsletter_template_format(teacher_quote)
+        # 今日のひとこと（手動入力用の空セクション）
+        quote_text = ""  # 空のセクションとして処理（手動で貼り付ける用）
         
         # 生成日時（日本時間）を取得
         generated_time = DateUtils.get_now_jst()
@@ -364,7 +340,7 @@ class NewsletterGenerator:
             schedule=schedule_text,
             event=event_text,
             youtube=youtube_text,
-            teacher_quote=quote_text,
+            # teacher_quote=quote_text,  # 削除: 手動入力に変更
             曜日=weekday,
             曜日テーマ=weekday_theme,
             曜日補足=""
@@ -400,7 +376,11 @@ class NewsletterGenerator:
 {{ youtube }}
 -----
 
-{{ teacher_quote }}
+5. 今日のひとこと
+-----
+（手動で貼り付けてください）
+
+-----
 
 6. 今日の学校案内（{{ 曜日 }}曜日のテーマ：{{ 曜日テーマ }}）
 -----

@@ -56,8 +56,7 @@ class WeatherInfo(BaseModel):
     """天気情報のデータ構造（時間帯別登校・授業終了情報対応）"""
     # 登校時間（8時）の情報
     登校時_天気: str = Field(description="8時頃の天気（例：晴れ、曇り、雨）")
-    登校時_最高気温: str = Field(description="日中の最高気温（例：25度）")
-    登校時_最低気温: str = Field(description="朝の最低気温（例：18度）")
+    登校時_最高気温: str = Field(description="登校時の気温（例：22度）")
     登校時_降水確率: str = Field(description="8時頃の降水確率（例：10%）")
     登校時_湿度: str = Field(description="8時頃の湿度（例：65%）")
     登校時_風速風向: str = Field(description="8時頃の風（例：南西の風3m/s）")
@@ -85,6 +84,8 @@ class PressureInfo(BaseModel):
     気圧予測: str = Field(description="今後の気圧予測（例：さらに下降予想、安定継続）")
     気圧レベル: str = Field(description="気圧の高低評価（例：やや低め、標準、高め）")
     体調影響: str = Field(description="気圧による体調への影響予測（例：頭痛注意、良好、集中力低下の可能性）", default="")
+    分析詳細: str = Field(description="詳細な気圧分析結果（例：気圧が急激に下降しています）", default="")
+    分析スコア: float = Field(description="分析の信頼度スコア（0-10）", default=5.0)
 
 
 @dataclass

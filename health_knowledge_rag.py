@@ -20,7 +20,7 @@ except ImportError:
         def error(self, msg): print(f"ERROR: {msg}")
     st = DummySt()
 
-from config import WeatherInfo
+from config import WeatherInfo, PressureInfo
 
 
 class HealthKnowledgeRAG:
@@ -953,13 +953,185 @@ class HealthKnowledgeRAG:
             "無理をせず、お体を大切にしながら目標に向かって頑張ってください。",
             "皆様が健康で充実した日々を送られることを心より願っております。"
         ]
-        
+
         if pressure_encouragement:
             return f"{pressure_encouragement}。{random.choice(conclusion_options)}"
         elif lunar_encouragement:
             return f"{lunar_encouragement}。{random.choice(conclusion_options)}"
         else:
             return random.choice(conclusion_options)
-    
+
+    def generate_comprehensive_health_message(self, weather_info: WeatherInfo, pressure_info: PressureInfo,
+                                            moon_age: Optional[float], target_date: date) -> str:
+        """天気+気圧+月齢の総合的な健康アドバイスメッセージを生成"""
+        try:
+            st.info("🧠 総合健康アドバイス生成開始...")
+
+            # 統合メッセージを構築
+            formatted_date = f"{target_date.month}月{target_date.day}日"
+
+            # 気圧による体調影響の分析
+            pressure_advice = self._analyze_pressure_health_impact(pressure_info)
+
+            # 天気による体調影響の分析
+            weather_advice = self._analyze_weather_health_impact(weather_info)
+
+            # 月齢による体調影響の分析
+            lunar_advice = ""
+            if moon_age is not None:
+                lunar_advice = self._analyze_lunar_health_impact(moon_age)
+
+            # OpenAI APIを使用して統合メッセージを生成
+            if self.openai_client:
+                prompt = f"""
+あなたは受験生向けの健康アドバイザーです。以下の情報を統合して、受験生に向けた実践的で温かみのある健康アドバイスを生成してください。
+
+【日付】: {formatted_date}
+
+【天気情報】:
+- 登校時天気: {weather_info.登校時_天気}
+- 登校時気温: {weather_info.登校時_最高気温}
+- 授業終了時天気: {weather_info.授業終了時_天気}
+- 授業終了時気温: {weather_info.授業終了時_気温}
+- 快適度: {weather_info.快適具合}
+
+【気圧情報】:
+- 現在気圧: {pressure_info.現在気圧}
+- 気圧変化: {pressure_info.気圧変化}
+- 気圧レベル: {pressure_info.気圧レベル}
+- 体調影響予測: {pressure_info.体調影響}
+
+【月齢情報】:
+- 月齢: {moon_age}日 (0-30日周期)
+
+【既存の分析結果】:
+- 気圧影響: {pressure_advice}
+- 天気影響: {weather_advice}
+- 月齢影響: {lunar_advice}
+
+要求:
+1. 受験生に特化した健康アドバイス（集中力、体調管理、勉強効率）
+2. 気圧変化による頭痛・関節痛対策
+3. 天気変化による服装・体調管理
+4. 月齢による睡眠・精神状態への配慮
+5. 温かく励ましの気持ちを込めた文章
+6. 150-200文字程度で簡潔に
+
+形式: 自然な文章で、専門用語は避けて親しみやすく書いてください。
+"""
+
+                try:
+                    response = self.openai_client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "あなたは受験生の健康管理に特化したアドバイザーです。科学的根拠に基づきながらも、温かく親しみやすいアドバイスを提供してください。"},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=300,
+                        temperature=0.7
+                    )
+
+                    comprehensive_message = response.choices[0].message.content.strip()
+
+                    if comprehensive_message and len(comprehensive_message) > 50:
+                        st.success("✅ 総合健康アドバイス生成完了")
+                        return comprehensive_message
+
+                except Exception as e:
+                    st.warning(f"OpenAI API呼び出しエラー: {e}")
+
+            # フォールバック: 手動で統合メッセージを構築
+            st.info("🔄 フォールバック方式で総合メッセージを構築")
+            return self._build_fallback_comprehensive_message(weather_info, pressure_info, moon_age, formatted_date)
+
+        except Exception as e:
+            st.error(f"総合健康アドバイス生成エラー: {e}")
+            return "今日も体調管理に気をつけて、無理のない範囲で勉強を頑張りましょう。"
+
+    def _analyze_pressure_health_impact(self, pressure_info: PressureInfo) -> str:
+        """気圧による健康影響を分析"""
+        if not pressure_info:
+            return ""
+
+        advice_parts = []
+
+        # 気圧レベルによる影響
+        if "低め" in pressure_info.気圧レベル or "下降" in pressure_info.気圧変化:
+            advice_parts.append("気圧が低下しており、頭痛や集中力低下に注意が必要です")
+        elif "高め" in pressure_info.気圧レベル or "上昇" in pressure_info.気圧変化:
+            advice_parts.append("気圧が安定しており、体調は良好に保たれやすい状況です")
+
+        # 体調影響予測
+        if pressure_info.体調影響:
+            if "頭痛" in pressure_info.体調影響:
+                advice_parts.append("頭痛対策として水分補給と休憩を心がけましょう")
+            if "集中力" in pressure_info.体調影響:
+                advice_parts.append("集中力に影響が出やすいので、短時間の集中学習がおすすめです")
+
+        return "、".join(advice_parts) if advice_parts else ""
+
+    def _analyze_weather_health_impact(self, weather_info: WeatherInfo) -> str:
+        """天気による健康影響を分析"""
+        advice_parts = []
+
+        # 登校時の天気チェック
+        if "雨" in weather_info.登校時_天気:
+            advice_parts.append("雨の日は体調が崩れやすいので十分な睡眠を")
+        elif "晴れ" in weather_info.登校時_天気:
+            advice_parts.append("晴天で気持ちの良い一日、集中力アップが期待できます")
+
+        # 快適度チェック
+        if "蒸し暑い" in weather_info.快適具合:
+            advice_parts.append("蒸し暑さで疲労しやすいので水分補給をこまめに")
+        elif "肌寒い" in weather_info.快適具合:
+            advice_parts.append("肌寒いので体を冷やさないよう注意しましょう")
+
+        return "、".join(advice_parts) if advice_parts else ""
+
+    def _analyze_lunar_health_impact(self, moon_age: float) -> str:
+        """月齢による健康影響を分析"""
+        if moon_age is None:
+            return ""
+
+        # 新月期 (0-3日、27-30日)
+        if moon_age <= 3 or moon_age >= 27:
+            return "新月期で新しいスタートに適した時期、新しい学習習慣を始めるのに良いタイミングです"
+        # 上弦の月期 (6-9日)
+        elif 6 <= moon_age <= 9:
+            return "上弦の月期で集中力が高まりやすい時期、重要な学習に取り組むのに適しています"
+        # 満月期 (12-18日)
+        elif 12 <= moon_age <= 18:
+            return "満月期で活動的になりやすい時期、体調管理と睡眠の質に特に注意しましょう"
+        # 下弦の月期 (21-24日)
+        elif 21 <= moon_age <= 24:
+            return "下弦の月期で内省的になりやすい時期、復習や整理学習に向いています"
+        else:
+            return ""
+
+    def _build_fallback_comprehensive_message(self, weather_info: WeatherInfo, pressure_info: PressureInfo,
+                                            moon_age: Optional[float], formatted_date: str) -> str:
+        """フォールバック用の総合メッセージ構築"""
+        message_parts = []
+
+        # 基本的な挨拶
+        message_parts.append(f"{formatted_date}も体調管理を大切に")
+
+        # 気圧情報があれば追加
+        if pressure_info and pressure_info.体調影響:
+            if "頭痛" in pressure_info.体調影響:
+                message_parts.append("気圧の変化で頭痛が起こりやすいので、水分補給と適度な休憩を心がけましょう")
+            elif "良好" in pressure_info.体調影響:
+                message_parts.append("気圧が安定しているので体調も良好に保たれそうです")
+
+        # 天気による影響
+        if "蒸し暑い" in weather_info.快適具合:
+            message_parts.append("蒸し暑さに負けず、こまめな水分補給で集中力を維持しましょう")
+        elif "過ごしやすい" in weather_info.快適具合:
+            message_parts.append("過ごしやすい気候を活かして、効率的な学習を進めましょう")
+
+        # 励ましの言葉
+        message_parts.append("無理をせず、一歩ずつ目標に向かって頑張ってください")
+
+        return "。".join(message_parts) + "。"
 
 

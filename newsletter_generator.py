@@ -186,7 +186,7 @@ class NewsletterGenerator:
 
     
     def generate_newsletter(self, target_date: date, manual_issue_number: Optional[int] = None,
-                          weather_screenshot_path: Optional[str] = None) -> Dict[str, Any]:
+                          weather_screenshot_path: Optional[str] = None, pressure_screenshot_path: Optional[str] = None) -> Dict[str, Any]:
         """メルマガを生成（Google Calendar専用版）"""
         
         st.info("🔄 メルマガ生成開始...")
@@ -213,8 +213,25 @@ class NewsletterGenerator:
                 weather_info = self.weather_service.analyze_weather_screenshot(weather_screenshot_path, target_date)
                 if weather_info:
                     st.success("✅ スクリーンショットから天気情報を正常に取得しました")
-                    heartwarming_message = self.weather_service.generate_heartwarming_message(weather_info, target_date)
-                    st.info(f"🔍 デバッグ: heartwarming_message = '{heartwarming_message}'")
+
+                    # 気圧情報の処理（オプション）
+                    pressure_info = None
+                    if pressure_screenshot_path:
+                        st.info("📊 気圧スクリーンショットから気圧情報を解析中...")
+                        try:
+                            pressure_info = self.weather_service.analyze_pressure_screenshot(pressure_screenshot_path, target_date)
+                            if pressure_info:
+                                st.success("✅ 気圧スクリーンショットから気圧情報を正常に取得しました")
+                                st.info(f"🌀 気圧情報: {pressure_info.現在気圧}, {pressure_info.気圧変化}")
+                            else:
+                                st.warning("⚠️ 気圧情報の解析に失敗しました")
+                        except Exception as e:
+                            st.warning(f"⚠️ 気圧スクリーンショット解析エラー: {e}")
+                            pressure_info = None
+
+                    # 複合メッセージ生成（天気+気圧+月齢）
+                    heartwarming_message = self._generate_comprehensive_health_message(weather_info, pressure_info, target_date)
+                    st.info(f"🔍 デバッグ: comprehensive_message = '{heartwarming_message[:100]}...'")
 
                     # 月齢データを取得
                     moon_age = self.weather_service.latest_moon_age
@@ -404,3 +421,49 @@ class NewsletterGenerator:
 ・「ログイン情報変更」（スマートフォンの場合は三本線のメニュー）を選択する
 ・「メール受信設定変更」を選択する
 ・「ログイン情報変更」のチェックボックスを解除する"""
+
+    def _generate_comprehensive_health_message(self, weather_info, pressure_info, target_date: date) -> str:
+        """天気+気圧+月齢の複合的な健康アドバイスメッセージを生成"""
+        try:
+            st.info("🧠 複合的な健康アドバイスメッセージを生成中...")
+
+            # RAGシステムを使用した高度なメッセージ生成
+            from health_knowledge_rag import HealthKnowledgeRAG
+
+            rag_system = HealthKnowledgeRAG(openai_client=self.weather_service.client)
+
+            # 月齢データを取得
+            moon_age = getattr(self.weather_service, 'latest_moon_age', None)
+
+            # 気圧情報がある場合は総合的なメッセージを生成
+            if pressure_info:
+                st.info("🌀 気圧情報を含む総合健康アドバイスを生成")
+                comprehensive_message = rag_system.generate_comprehensive_health_message(
+                    weather_info, pressure_info, moon_age, target_date
+                )
+
+                if comprehensive_message and len(comprehensive_message.strip()) > 10:
+                    st.success("✅ 総合健康アドバイス生成完了")
+                    return comprehensive_message
+                else:
+                    st.warning("総合メッセージ生成に失敗、フォールバック使用")
+
+            # フォールバック: 従来の天気+月齢メッセージ
+            st.info("🌤️ 従来の天気+月齢メッセージを生成")
+            fallback_message = rag_system.generate_student_focused_message(weather_info, moon_age)
+
+            if fallback_message and len(fallback_message.strip()) > 10:
+                st.success("✅ 天気+月齢メッセージ生成完了")
+                return fallback_message
+            else:
+                # 最終フォールバック
+                st.warning("RAGメッセージ生成に失敗、基本メッセージ使用")
+                return self.weather_service._generate_legacy_message(weather_info, target_date)
+
+        except ImportError:
+            st.warning("RAGシステムが利用できません、従来方式を使用")
+            return self.weather_service._generate_legacy_message(weather_info, target_date)
+        except Exception as e:
+            st.error(f"複合メッセージ生成エラー: {e}")
+            # エラー時は従来の方式にフォールバック
+            return self.weather_service._generate_legacy_message(weather_info, target_date)

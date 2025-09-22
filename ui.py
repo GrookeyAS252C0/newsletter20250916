@@ -103,7 +103,7 @@ class NewsletterUI:
             
             debug_print("_setup_sidebar() 実行中...")
             # サイドバー設定（Google Calendar設定を含む）
-            publish_date, manual_issue_number, generate_button, self.calendar_config, uploaded_screenshot = self._setup_sidebar()
+            publish_date, manual_issue_number, generate_button, self.calendar_config, uploaded_screenshot, uploaded_pressure_screenshot = self._setup_sidebar()
             debug_print("_setup_sidebar() 完了")
             
             # NewsletterGeneratorを初期化（Google Calendar設定を含む）
@@ -121,7 +121,7 @@ class NewsletterUI:
             # メルマガ生成処理（サイドバーのボタンが押された時のみ）
             if generate_button:
                 debug_print("generate_button が押されました")
-                self._generate_and_display_newsletter(publish_date, manual_issue_number, uploaded_screenshot)
+                self._generate_and_display_newsletter(publish_date, manual_issue_number, uploaded_screenshot, uploaded_pressure_screenshot)
             else:
                 debug_print("generate_button は押されていません")
                 
@@ -160,7 +160,7 @@ class NewsletterUI:
             return
         
     
-    def _setup_sidebar(self) -> Tuple[date, Optional[int], bool, dict]:
+    def _setup_sidebar(self) -> Tuple[date, Optional[int], bool, dict, Any, Any]:
         """サイドバーの設定（Google Calendar設定を含む）"""
         st.sidebar.header("⚙️ メルマガ設定")
         
@@ -216,13 +216,29 @@ class NewsletterUI:
         uploaded_screenshot = st.sidebar.file_uploader(
             "天気予報のスクリーンショットをアップロード",
             type=['png', 'jpg', 'jpeg'],
-            help="天気予報のスクリーンショットをアップロードしてください（必須）"
+            help="天気予報のスクリーンショットをアップロードしてください（必須）",
+            key="weather_screenshot_uploader"
         )
 
         if not uploaded_screenshot:
             st.sidebar.warning("⚠️ 天気予報のスクリーンショットが必要です")
         else:
             st.sidebar.success("✅ スクリーンショットがアップロードされました")
+
+        # 気圧スクリーンショットアップロード機能（オプション）
+        st.sidebar.markdown("**📊 気圧情報スクリーンショット（オプション）**")
+        uploaded_pressure_screenshot = st.sidebar.file_uploader(
+            "気圧情報のスクリーンショットをアップロード",
+            type=['png', 'jpg', 'jpeg'],
+            help="気圧情報のスクリーンショットをアップロードすると、より詳細な体調管理アドバイスが生成されます（オプション）",
+            key="pressure_screenshot_uploader"
+        )
+
+        if uploaded_pressure_screenshot:
+            st.sidebar.success("✅ 気圧スクリーンショットがアップロードされました")
+            st.sidebar.info("🌀 気圧による体調影響も考慮したメッセージを生成します")
+        else:
+            st.sidebar.info("📊 気圧情報を追加すると、より詳細な健康アドバイスが可能です")
         
         # データ取得方式
         st.sidebar.markdown("**🎯 データ取得方式**")
@@ -253,7 +269,7 @@ class NewsletterUI:
             help="設定した内容でメルマガを生成します"
         )
         
-        return publish_date, manual_issue_number, generate_button, calendar_config, uploaded_screenshot
+        return publish_date, manual_issue_number, generate_button, calendar_config, uploaded_screenshot, uploaded_pressure_screenshot
     
     # [カレンダー設定の関数は先ほど作成したものをここに挿入]
     def _setup_calendar_settings(self) -> dict:
@@ -332,30 +348,45 @@ class NewsletterUI:
             st.info("📺 YouTube動画は「メルマガを生成」ボタンを押したときに取得されます")
     
     
-    def _generate_and_display_newsletter(self, publish_date: date, manual_issue_number: Optional[int], uploaded_screenshot=None):
+    def _generate_and_display_newsletter(self, publish_date: date, manual_issue_number: Optional[int], uploaded_screenshot=None, uploaded_pressure_screenshot=None):
         """メルマガ生成と表示"""
         # 生成処理の開始を明確に表示
         st.success("🚀 メルマガ生成を開始します...")
 
         # アップロードされたスクリーンショットの処理
         weather_screenshot_path = None
+        pressure_screenshot_path = None
+
         if uploaded_screenshot is not None:
             import tempfile
             import os
 
-            # 一時ファイルに保存
+            # 天気スクリーンショットを一時ファイルに保存
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_screenshot.type.split('/')[-1]}") as tmp_file:
                 tmp_file.write(uploaded_screenshot.getvalue())
                 weather_screenshot_path = tmp_file.name
 
-            st.success(f"📸 スクリーンショットが正常にアップロードされました: {uploaded_screenshot.name}")
+            st.success(f"📸 天気スクリーンショットが正常にアップロードされました: {uploaded_screenshot.name}")
+
+        if uploaded_pressure_screenshot is not None:
+            import tempfile
+            import os
+
+            # 気圧スクリーンショットを一時ファイルに保存
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_pressure_screenshot.type.split('/')[-1]}") as tmp_file:
+                tmp_file.write(uploaded_pressure_screenshot.getvalue())
+                pressure_screenshot_path = tmp_file.name
+
+            st.success(f"📊 気圧スクリーンショットが正常にアップロードされました: {uploaded_pressure_screenshot.name}")
+            st.info("🌀 気圧情報を活用した詳細な健康アドバイスを生成します")
 
         with st.spinner("🌐 複数の天気予報データソースから情報を取得中..."):
             try:
                 result = self.generator.generate_newsletter(
                     publish_date,
                     manual_issue_number,
-                    weather_screenshot_path=weather_screenshot_path
+                    weather_screenshot_path=weather_screenshot_path,
+                    pressure_screenshot_path=pressure_screenshot_path
                 )
                 
                 # 生成完了メッセージ
@@ -377,11 +408,13 @@ class NewsletterUI:
                 st.error(f"詳細エラー: {traceback.format_exc()}")
             finally:
                 # 一時ファイルのクリーンアップ
-                if weather_screenshot_path and os.path.exists(weather_screenshot_path):
-                    try:
-                        os.unlink(weather_screenshot_path)
-                    except Exception as e:
-                        st.warning(f"⚠️ 一時ファイルの削除に失敗: {e}")
+                cleanup_files = [weather_screenshot_path, pressure_screenshot_path]
+                for file_path in cleanup_files:
+                    if file_path and os.path.exists(file_path):
+                        try:
+                            os.unlink(file_path)
+                        except Exception as e:
+                            st.warning(f"⚠️ 一時ファイルの削除に失敗: {e}")
     
     
     def _display_generation_details(self, result: Dict[str, Any]):
@@ -397,7 +430,6 @@ class NewsletterUI:
             weather_dict = {
                 "登校時_天気": result['weather_info'].登校時_天気,
                 "登校時_最高気温": result['weather_info'].登校時_最高気温,
-                "登校時_最低気温": result['weather_info'].登校時_最低気温,
                 "登校時_降水確率": result['weather_info'].登校時_降水確率,
                 "登校時_湿度": result['weather_info'].登校時_湿度,
                 "登校時_風速風向": result['weather_info'].登校時_風速風向,
@@ -480,3 +512,8 @@ class NewsletterUI:
                 file_name=filename_md,
                 mime="text/markdown"
             )
+
+
+if __name__ == "__main__":
+    ui = NewsletterUI()
+    ui.run()

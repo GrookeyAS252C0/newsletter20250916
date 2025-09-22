@@ -322,7 +322,7 @@ class HealthKnowledgeRAG:
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "あなたは受験生・保護者に寄り添う健康サポーターです。月齢の影響について、科学的根拠の限界を明記しつつ、上から目線にならず優しく丁寧な口調でアドバイスしてください。体調を気遣う温かい言葉を使い、「頑張って」のような言葉は避けてください。"},
+                    {"role": "system", "content": "気圧変化と月の満ち欠けによる体調への影響を説明する専門家です。挨拶や励ましの言葉は不要で、気圧・月齢による具体的な体調変化と対処法のみを簡潔に述べてください。科学的根拠の限界は明記し、断定的な表現は避けてください。"},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=300,
@@ -342,22 +342,16 @@ class HealthKnowledgeRAG:
         primary_influence = lunar_analysis.get("primary_influence", "")
         influence_strength = lunar_analysis.get("influence_strength", "mild")
         
-        prompt = f"""受験生・保護者向けの簡潔な月齢アドバイスを生成してください。
-
-【月齢情報】
-- 現在の月齢: {moon_age:.1f}日
-- 時期: {phase_desc}
-- 主要影響: {primary_influence}
+        prompt = f"""月齢{moon_age:.1f}日（{phase_desc}）による体調への影響と対処法を説明してください。
 
 【要件】
-- 80文字以内の簡潔なアドバイス
-- 「参考程度ですが」等で科学的根拠の限界を明記
-- 受験生の体調・睡眠への配慮
-- 優しく丁寧で寄り添う口調
-- 「頑張って」ではなく体調を気遣う温かい言葉
+- 60文字以内
+- 月齢による具体的な体調変化のみ記載（挨拶・励まし不要）
+- 「一般的に」「とされています」等で根拠の限界を明記
+- 睡眠・集中力への影響を中心に
 
 【出力形式】
-月齢の特性に基づいた短いアドバイス文を生成してください。"""
+体調影響の説明と具体的な対処法のみ"""
 
         if pressure_context:
             prompt += f"\n\n【気圧情報】\n{pressure_context.get('status', '')}の影響も考慮してください。"
@@ -369,11 +363,11 @@ class HealthKnowledgeRAG:
         phase_text = lunar_analysis.get("phase_text", "")
         
         if "新月" in phase_text:
-            return "新月の時期ですね。参考程度ですが、心身のリセットに良いタイミングとされています。十分な休息を取られて、新しいペースで過ごされるのはいかがでしょうか。"
+            return "新月期は一般的に心身のリセット期とされています。十分な睡眠時間の確保をお勧めします。"
         elif "満月" in phase_text:
-            return "満月の時期ですね。一部の研究では睡眠に影響があるとも言われています。就寝環境を整え、ゆったりとお過ごしいただければと思います。"
+            return "満月期は睡眠の質に影響する可能性があるとされています。就寝環境を整えてください。"
         else:
-            return "月の満ち欠けの時期ですね。参考程度ですが、自然のリズムに合わせて生活を整えることで、穏やかにお過ごしいただけるかもしれません。"
+            return "月の満ち欠けは体内リズムに影響するとされています。規則正しい生活リズムを心がけてください。"
     
     def get_integration_guidelines(self) -> Dict[str, Any]:
         """統合ガイドラインを取得"""
@@ -685,7 +679,7 @@ class HealthKnowledgeRAG:
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "あなたは受験生・保護者に寄り添う健康サポーターです。上から目線にならず、優しく丁寧な口調で、気圧と月齢の影響を統合したアドバイスを生成してください。「頑張って」のような励ましではなく、体調を気遣う温かい言葉を使ってください。"},
+                    {"role": "system", "content": "気圧変化と月の満ち欠けによる体調への影響を説明する専門家です。挨拶や励ましの言葉は不要で、気圧・月齢による具体的な体調変化と対処法のみを簡潔に述べてください。"},
                     {"role": "user", "content": integration_prompt}
                 ],
                 max_tokens=200,
@@ -707,28 +701,20 @@ class HealthKnowledgeRAG:
         moon_age = lunar_analysis.get("moon_age", 0)
         phase_desc = lunar_analysis.get("phase_description", "")
         
-        prompt = f"""気圧と月齢の情報を統合して、受験生・保護者向けのコンパクトなアドバイスを生成してください。
+        prompt = f"""気圧と月齢による体調への影響を統合した説明を生成してください。
 
-【気圧情報】
-- 状況: {pressure_status}
-- 体調への影響: {pressure_impact}
-- 学習への影響: {pressure_study}
-
-【月齢情報】
-- 月齢: {moon_age:.1f}日
-- 時期: {phase_desc}
-- LLMコメント: {lunar_comment}
+【気圧状況】: {pressure_status}
+【体調影響】: {pressure_impact}
+【月齢】: {moon_age:.1f}日（{phase_desc}）
+【月齢コメント】: {lunar_comment}
 
 【要件】
-- 120文字以内のコンパクトなメッセージ
-- 重複する内容は統合する
-- 受験生と保護者両方への配慮
-- 優しく丁寧で寄り添う口調
-- 「頑張って」ではなく体調を気遣う温かい言葉
-- 気圧と月齢の影響を自然に組み合わせる
+- 80文字以内
+- 挨拶・励まし不要、体調変化の説明のみ
+- 気圧と月齢の複合的な影響を簡潔に
 
 【出力形式】
-統合された一つの自然なアドバイス文を生成してください。"""
+体調への影響説明と具体的対処法"""
         
         return prompt
     
@@ -983,48 +969,25 @@ class HealthKnowledgeRAG:
 
             # OpenAI APIを使用して統合メッセージを生成
             if self.openai_client:
-                prompt = f"""
-あなたは受験生向けの健康アドバイザーです。以下の情報を統合して、受験生に向けた実践的で温かみのある健康アドバイスを生成してください。
+                prompt = f"""気圧{pressure_info.現在気圧}（{pressure_info.気圧変化}）、月齢{moon_age}日、天気{weather_info.登校時_天気}による体調への影響を説明してください。
 
-【日付】: {formatted_date}
+【体調影響予測】: {pressure_info.体調影響}
+【天気状況】: {weather_info.快適具合}
 
-【天気情報】:
-- 登校時天気: {weather_info.登校時_天気}
-- 登校時気温: {weather_info.登校時_最高気温}
-- 授業終了時天気: {weather_info.授業終了時_天気}
-- 授業終了時気温: {weather_info.授業終了時_気温}
-- 快適度: {weather_info.快適具合}
+【要件】
+- 100文字以内
+- 挨拶・励まし不要
+- 気圧・月齢・天気の複合的影響のみ説明
+- 具体的な対処法を含める
 
-【気圧情報】:
-- 現在気圧: {pressure_info.現在気圧}
-- 気圧変化: {pressure_info.気圧変化}
-- 気圧レベル: {pressure_info.気圧レベル}
-- 体調影響予測: {pressure_info.体調影響}
-
-【月齢情報】:
-- 月齢: {moon_age}日 (0-30日周期)
-
-【既存の分析結果】:
-- 気圧影響: {pressure_advice}
-- 天気影響: {weather_advice}
-- 月齢影響: {lunar_advice}
-
-要求:
-1. 受験生に特化した健康アドバイス（集中力、体調管理、勉強効率）
-2. 気圧変化による頭痛・関節痛対策
-3. 天気変化による服装・体調管理
-4. 月齢による睡眠・精神状態への配慮
-5. 温かく励ましの気持ちを込めた文章
-6. 150-200文字程度で簡潔に
-
-形式: 自然な文章で、専門用語は避けて親しみやすく書いてください。
-"""
+【出力形式】
+体調変化の説明と対処法"""
 
                 try:
                     response = self.openai_client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[
-                            {"role": "system", "content": "あなたは受験生の健康管理に特化したアドバイザーです。科学的根拠に基づきながらも、温かく親しみやすいアドバイスを提供してください。"},
+                            {"role": "system", "content": "気圧変化と月の満ち欠けによる体調への影響を説明する専門家です。挨拶や励ましは不要で、気圧・月齢・天気による具体的な体調変化と対処法のみを簡潔に述べてください。"},
                             {"role": "user", "content": prompt}
                         ],
                         max_tokens=300,

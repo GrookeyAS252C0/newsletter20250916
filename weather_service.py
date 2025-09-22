@@ -786,7 +786,7 @@ class WeatherService:
 天気情報：
 - 日付: {formatted_date}
 - 天気: {weather_info.天気概況}
-- 登校時の気温: {weather_info.登校時_最高気温}/{weather_info.登校時_最低気温}
+- 登校時の気温: {weather_info.登校時_最高気温}
 - 授業終了時の気温: {weather_info.授業終了時_気温}
 - 登校時の湿度: {weather_info.登校時_湿度}
 - 授業終了時の湿度: {weather_info.授業終了時_湿度}
@@ -887,7 +887,7 @@ class WeatherService:
     def _get_weather_specific_guidance(self, weather_info: WeatherInfo) -> str:
         """天気条件に応じた具体的なガイダンスを生成"""
         weather = weather_info.天気概況.lower()
-        temp_info = f"{weather_info.登校時_最高気温}/{weather_info.登校時_最低気温}".lower()
+        temp_info = f"{weather_info.登校時_最高気温}".lower()
         rain_prob = weather_info.登校時_降水確率.lower()
         comfort = weather_info.快適具合.lower()
         
@@ -1235,7 +1235,6 @@ class WeatherService:
             weather_info = WeatherInfo(
                 登校時_天気=登校時_天気 or "不明",
                 登校時_最高気温=登校時_最高気温 or "不明",
-                登校時_最低気温="",  # 使用しない
                 登校時_降水確率=登校時_降水確率 or "不明",
                 登校時_湿度=登校時_湿度 or "不明",
                 登校時_風速風向=登校時_風速風向 or "不明",

@@ -205,7 +205,6 @@ class ContentController(BaseUIController):
             weather_dict = {
                 "登校時_天気": result['weather_info'].登校時_天気,
                 "登校時_最高気温": result['weather_info'].登校時_最高気温,
-                "登校時_最低気温": result['weather_info'].登校時_最低気温,
                 "登校時_降水確率": result['weather_info'].登校時_降水確率,
                 "登校時_湿度": result['weather_info'].登校時_湿度,
                 "登校時_風速風向": result['weather_info'].登校時_風速風向,

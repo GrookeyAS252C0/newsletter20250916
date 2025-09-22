@@ -37,7 +37,7 @@ try:
 except ImportError:
     raise ImportError("langchainがインストールされていません: pip install langchain")
 
-from config import WeatherInfo
+from config import WeatherInfo, PressureInfo
 from utils import DateUtils
 
 # ログシステム（改善版システムが利用可能な場合）
@@ -1365,3 +1365,221 @@ class WeatherService:
             st.error(f"月齢計算エラー: {e}")
             # フォールバック値を設定
             weather_info.月齢 = "不明"
+
+    def analyze_pressure_screenshot(self, image_path: str, target_date: date) -> Optional[PressureInfo]:
+        """気圧スクリーンショットから気圧情報を抽出してPressureInfoオブジェクトを生成（3回実行で精度向上）"""
+        try:
+            st.info("📊 気圧スクリーンショットから気圧情報を解析中（3回実行で精度向上）...")
+
+            # 画像をbase64エンコード
+            if not os.path.exists(image_path):
+                st.error(f"気圧画像ファイルが見つかりません: {image_path}")
+                return None
+
+            # ファイルサイズの確認（20MB制限）
+            file_size = os.path.getsize(image_path)
+            if file_size > 20 * 1024 * 1024:  # 20MB
+                st.error(f"気圧ファイルサイズが大きすぎます: {file_size / (1024*1024):.1f}MB")
+                return None
+
+            # OpenAI APIキーの確認
+            if not self.client:
+                st.error("OpenAI APIクライアントが初期化されていません")
+                return None
+
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+            # 3回の解析を実行
+            analysis_results = []
+
+            for attempt in range(3):
+                st.info(f"🔄 気圧解析実行中... ({attempt + 1}/3)")
+
+                # OpenAI Vision APIで画像解析
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": """あなたは気象データの専門的な解析者です。気圧情報のスクリーンショットから詳細な気圧データを抽出してください。
+
+気圧画面から以下の情報を抽出してください：
+
+【現在の気圧情報】
+現在気圧: [現在の気圧値、例：1013.2hPa]
+気圧変化: [気圧の変化傾向、例：下降中、上昇中、安定]
+変化量: [具体的な変化量、例：-2.1hPa/3h、+1.5hPa/6h]
+気圧予測: [今後の気圧予測、例：さらに下降予想、安定継続、上昇に転じる]
+気圧レベル: [気圧の高低評価、例：やや低め、標準、高め]
+体調影響: [気圧による体調への影響予測、例：頭痛注意、良好、集中力低下の可能性]
+
+注意：
+- 数値は可能な限り正確に読み取ってください
+- 矢印や色で表示される変化傾向も考慮してください
+- 気圧が1013hPa未満は「低め」、1013-1020hPaは「標準」、1020hPa超は「高め」として評価
+- 気圧下降時は頭痛や関節痛のリスク、上昇時は体調安定の傾向を考慮
+- データが読み取れない場合は「データなし」と記載してください"""
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"{target_date.strftime('%Y年%m月%d日')}の気圧情報を詳細に解析し、受験生の体調管理に役立つ情報を抽出してください。特に気圧変化による体調への影響を重視してください。"
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{base64_image}"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens=400,
+                    temperature=0.05  # より一貫性のある結果のために温度を下げる
+                )
+
+                analysis_result = response.choices[0].message.content.strip()
+                analysis_results.append(analysis_result)
+
+                # 短い待機時間を設ける
+                time.sleep(0.5)
+
+            # 最も一貫性のある結果を選択
+            final_analysis = self._select_best_pressure_analysis(analysis_results)
+
+            st.success("✅ 気圧スクリーンショット解析完了（3回実行）")
+
+            # デバッグ情報を表示
+            with st.expander("🔍 気圧解析結果の詳細（3回実行）", expanded=False):
+                for i, result in enumerate(analysis_results):
+                    st.text(f"気圧解析結果 {i+1}:")
+                    st.code(result)
+                    st.divider()
+                st.text("最終選択結果:")
+                st.code(final_analysis)
+
+            # 解析結果をPressureInfoオブジェクトに変換
+            pressure_info = self._parse_pressure_analysis(final_analysis)
+
+            if pressure_info:
+                st.info(f"🌀 気圧情報抽出完了: {pressure_info.現在気圧}, {pressure_info.気圧変化}")
+                return pressure_info
+            else:
+                st.warning("気圧情報の構造化に失敗しました")
+                return None
+
+        except FileNotFoundError:
+            st.error(f"気圧ファイルが見つかりません: {image_path}")
+            return None
+        except PermissionError:
+            st.error(f"気圧ファイルアクセス権限がありません: {image_path}")
+            return None
+        except OSError as e:
+            st.error(f"気圧ファイル読み込みエラー: {e}")
+            return None
+        except Exception as e:
+            st.error(f"気圧スクリーンショット解析エラー: {e}")
+            return None
+
+    def _select_best_pressure_analysis(self, analysis_results: List[str]) -> str:
+        """3つの気圧解析結果から最も精度の高いものを選択"""
+        if not analysis_results:
+            return ""
+
+        # 各結果の品質スコアを計算
+        scored_results = []
+
+        for result in analysis_results:
+            score = self._calculate_pressure_analysis_score(result)
+            scored_results.append((score, result))
+
+        # スコアが最も高い結果を選択
+        scored_results.sort(key=lambda x: x[0], reverse=True)
+        best_result = scored_results[0][1]
+
+        st.info(f"🎯 最適な気圧解析結果を選択（スコア: {scored_results[0][0]:.2f}）")
+
+        return best_result
+
+    def _calculate_pressure_analysis_score(self, analysis_text: str) -> float:
+        """気圧解析結果の品質スコアを計算"""
+        score = 0.0
+
+        # 必須フィールドの存在チェック
+        required_fields = [
+            "現在気圧", "気圧変化", "気圧予測", "気圧レベル"
+        ]
+
+        for field in required_fields:
+            if field in analysis_text:
+                score += 1.0
+
+        # 数値データの存在をチェック
+        import re
+
+        # 気圧値（hPa）
+        pressure_matches = len(re.findall(r'\d+\.?\d*hPa', analysis_text))
+        score += min(pressure_matches * 1.0, 3.0)  # 最大3点
+
+        # 変化量（+/-を含む数値）
+        change_matches = len(re.findall(r'[+\-]\d+\.?\d*hPa', analysis_text))
+        score += min(change_matches * 0.5, 2.0)  # 最大2点
+
+        # 体調影響の評価
+        health_keywords = ['頭痛', '関節痛', '体調', '集中力', '良好', '注意']
+        health_score = sum(1 for keyword in health_keywords if keyword in analysis_text)
+        score += min(health_score * 0.3, 1.5)  # 最大1.5点
+
+        # 「データなし」や「不明」の減点
+        missing_data_count = len(re.findall(r'データなし|不明', analysis_text, re.IGNORECASE))
+        score -= missing_data_count * 0.5
+
+        # 構造化された情報の評価
+        if "【" in analysis_text and "】" in analysis_text:
+            score += 1.0
+
+        return max(score, 0.0)  # 負の値を避ける
+
+    def _parse_pressure_analysis(self, analysis_text: str) -> Optional[PressureInfo]:
+        """気圧解析テキストからPressureInfoオブジェクトを生成"""
+        try:
+            # 各フィールドを抽出
+            現在気圧 = self._extract_field(analysis_text, ["現在気圧"])
+            気圧変化 = self._extract_field(analysis_text, ["気圧変化"])
+            変化量 = self._extract_field(analysis_text, ["変化量"])
+            気圧予測 = self._extract_field(analysis_text, ["気圧予測"])
+            気圧レベル = self._extract_field(analysis_text, ["気圧レベル"])
+            体調影響 = self._extract_field(analysis_text, ["体調影響"])
+
+            # デバッグ情報を表示
+            with st.expander("🔍 気圧フィールド抽出結果", expanded=False):
+                st.write({
+                    "現在気圧": 現在気圧,
+                    "気圧変化": 気圧変化,
+                    "変化量": 変化量,
+                    "気圧予測": 気圧予測,
+                    "気圧レベル": 気圧レベル,
+                    "体調影響": 体調影響
+                })
+
+            # PressureInfoオブジェクトを作成
+            pressure_info = PressureInfo(
+                現在気圧=現在気圧 or "不明",
+                気圧変化=気圧変化 or "不明",
+                変化量=変化量 or "",
+                気圧予測=気圧予測 or "不明",
+                気圧レベル=気圧レベル or "不明",
+                体調影響=体調影響 or ""
+            )
+
+            st.info(f"✅ PressureInfo作成成功: {pressure_info.現在気圧}, {pressure_info.気圧変化}")
+            return pressure_info
+
+        except Exception as e:
+            st.error(f"気圧データ構造化エラー: {e}")
+            import traceback
+            st.error(f"詳細エラー: {traceback.format_exc()}")
+            return None

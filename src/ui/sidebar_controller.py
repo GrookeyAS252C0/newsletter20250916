@@ -17,7 +17,7 @@ class SidebarController(BaseUIController):
     def __init__(self):
         super().__init__()
     
-    def render(self) -> Tuple[date, Optional[int], bool, Dict[str, Any], Optional[Any]]:
+    def render(self) -> Tuple[date, Optional[int], bool, Dict[str, Any], Optional[Any], Optional[Any]]:
         """サイドバーの描画"""
         st.sidebar.header("⚙️ メルマガ設定")
 
@@ -31,12 +31,12 @@ class SidebarController(BaseUIController):
         calendar_config = self._render_calendar_settings()
 
         # 天気予報設定（スクリーンショットアップロード含む）
-        uploaded_screenshot = self._render_weather_settings()
+        uploaded_screenshot, uploaded_pressure_screenshot = self._render_weather_settings()
 
         # 生成ボタン
         generate_button = self._render_generate_button()
 
-        return publish_date, manual_issue_number, generate_button, calendar_config, uploaded_screenshot
+        return publish_date, manual_issue_number, generate_button, calendar_config, uploaded_screenshot, uploaded_pressure_screenshot
     
     def _render_date_settings(self) -> date:
         """発行日設定の描画"""
@@ -128,6 +128,21 @@ class SidebarController(BaseUIController):
         else:
             st.sidebar.success("✅ スクリーンショットがアップロードされました")
 
+        # 気圧スクリーンショットアップロード機能（オプション）
+        st.sidebar.markdown("**📊 気圧情報スクリーンショット（オプション）**")
+        uploaded_pressure_screenshot = st.sidebar.file_uploader(
+            "気圧情報のスクリーンショットをアップロード",
+            type=['png', 'jpg', 'jpeg'],
+            help="気圧情報のスクリーンショットをアップロードすると、より詳細な体調管理アドバイスが生成されます（オプション）",
+            key="pressure_screenshot_uploader"
+        )
+
+        if uploaded_pressure_screenshot:
+            st.sidebar.success("✅ 気圧スクリーンショットがアップロードされました")
+            st.sidebar.info("🌀 気圧による体調影響も考慮したメッセージを生成します")
+        else:
+            st.sidebar.info("📊 気圧情報を追加すると、より詳細な健康アドバイスが可能です")
+
         # データ取得方式
         st.sidebar.markdown("**🎯 データ取得方式**")
         if uploaded_screenshot:
@@ -141,7 +156,7 @@ class SidebarController(BaseUIController):
         st.sidebar.info("🤖 OpenAI Vision API でスクリーンショット解析")
         st.sidebar.info("🌙 高精度月齢計算システム")
 
-        return uploaded_screenshot
+        return uploaded_screenshot, uploaded_pressure_screenshot
     
     def _render_generate_button(self) -> bool:
         """生成ボタンの描画"""

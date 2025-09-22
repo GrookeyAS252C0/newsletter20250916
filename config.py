@@ -77,6 +77,16 @@ class WeatherInfo(BaseModel):
     気圧状況: str = Field(description="気圧の状況（例：高気圧、低気圧、気圧の谷、気圧変化なし）", default="")
 
 
+class PressureInfo(BaseModel):
+    """気圧情報のデータ構造"""
+    現在気圧: str = Field(description="現在の気圧値（例：1013.2hPa）")
+    気圧変化: str = Field(description="気圧の変化傾向（例：下降中、上昇中、安定）")
+    変化量: str = Field(description="気圧変化量（例：-2.1hPa/3h）", default="")
+    気圧予測: str = Field(description="今後の気圧予測（例：さらに下降予想、安定継続）")
+    気圧レベル: str = Field(description="気圧の高低評価（例：やや低め、標準、高め）")
+    体調影響: str = Field(description="気圧による体調への影響予測（例：頭痛注意、良好、集中力低下の可能性）", default="")
+
+
 @dataclass
 class YouTubeVideo:
     """YouTube動画情報"""

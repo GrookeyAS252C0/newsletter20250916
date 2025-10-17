@@ -32,10 +32,15 @@ except ImportError:
     raise ImportError("requestsがインストールされていません: pip install requests")
 
 try:
-    from langchain.output_parsers import PydanticOutputParser
-    from langchain.schema import OutputParserException
+    from langchain_core.output_parsers import PydanticOutputParser
+    from langchain_core.exceptions import OutputParserException
 except ImportError:
-    raise ImportError("langchainがインストールされていません: pip install langchain")
+    try:
+        # Fallback for older langchain versions
+        from langchain.output_parsers import PydanticOutputParser
+        from langchain.schema import OutputParserException
+    except ImportError:
+        raise ImportError("langchain-coreまたはlangchainがインストールされていません: pip install langchain-core langchain")
 
 from config import WeatherInfo, PressureInfo
 from utils import DateUtils

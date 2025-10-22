@@ -92,7 +92,7 @@ class DateUtils:
         year = target_date.year
         month = target_date.month
         day = target_date.day
-        
+
         return [
             target_date.strftime("%Y年%m月%d日"),   # 2025年05月25日
             target_date.strftime("%Y/%m/%d"),        # 2025/05/25
@@ -107,3 +107,65 @@ class DateUtils:
             f"{month}/{day}",                        # 5/25
             target_date.strftime("%m-%d"),           # 05-25
         ]
+
+    @staticmethod
+    def get_season_info(target_date: date) -> str:
+        """日付から季節情報を取得（受験生向け健康アドバイスに使用）"""
+        month = target_date.month
+        day = target_date.day
+
+        # 季節の判定（日本の気候に基づく）
+        if month == 12 or month == 1 or month == 2:
+            if month == 12 and day >= 20:
+                return "冬本番、寒さが厳しい時期"
+            elif month == 1:
+                return "厳冬期、一年で最も寒い時期"
+            elif month == 2:
+                if day <= 15:
+                    return "厳冬期、まだ寒さが厳しい時期"
+                else:
+                    return "冬の終わり、春の兆しが見え始める時期"
+            else:
+                return "初冬、本格的な寒さが始まる時期"
+
+        elif month == 3 or month == 4 or month == 5:
+            if month == 3:
+                if day <= 20:
+                    return "早春、まだ肌寒い日が多い時期"
+                else:
+                    return "春本番、暖かくなり始める時期"
+            elif month == 4:
+                return "春爛漫、過ごしやすい気候の時期"
+            else:  # month == 5
+                if day <= 15:
+                    return "晩春、初夏の陽気を感じる時期"
+                else:
+                    return "初夏、日差しが強くなり始める時期"
+
+        elif month == 6 or month == 7 or month == 8:
+            if month == 6:
+                return "梅雨、湿度が高く蒸し暑い時期"
+            elif month == 7:
+                if day <= 20:
+                    return "梅雨明け頃、蒸し暑さが増す時期"
+                else:
+                    return "真夏、猛暑日が続く時期"
+            else:  # month == 8
+                return "盛夏、一年で最も暑い時期"
+
+        else:  # month == 9 or month == 10 or month == 11
+            if month == 9:
+                if day <= 20:
+                    return "初秋、まだ残暑が厳しい時期"
+                else:
+                    return "秋の訪れ、過ごしやすくなり始める時期"
+            elif month == 10:
+                if day <= 20:
+                    return "秋本番、朝晩は涼しくなる時期"
+                else:
+                    return "晩秋、朝晩の冷え込みが厳しくなる時期"
+            else:  # month == 11
+                if day <= 15:
+                    return "晩秋、冬の足音が近づく時期"
+                else:
+                    return "初冬への移行期、本格的な寒さの前触れの時期"

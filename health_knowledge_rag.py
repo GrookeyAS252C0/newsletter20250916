@@ -1103,4 +1103,127 @@ class HealthKnowledgeRAG:
 
         return "。".join(message_parts) + "。"
 
+    def generate_season_aware_student_message(self, weather_info: WeatherInfo, pressure_info: PressureInfo,
+                                             moon_age: Optional[float], target_date: date, season_info: str) -> str:
+        """季節を考慮した受験生向け200文字アドバイス生成（バリエーション確保）"""
+        try:
+            st.info("🌸 季節を考慮した受験生向けアドバイス生成中...")
+
+            # 曜日ベースでアプローチを変える（バリエーション確保）
+            weekday = target_date.weekday()
+            approach_perspectives = [
+                "フィジカル（身体的ケア）重視: 具体的な体調管理方法を中心に",
+                "メンタル（精神的サポート）重視: 心の安定と励ましを中心に",
+                "具体的アドバイス重視: 実践的な対処法を中心に",
+                "季節の特徴重視: 季節特有の注意点を中心に",
+                "気圧・月齢の影響重視: 科学的根拠に基づく体調変化を中心に",
+                "応援メッセージ重視: 受験生への温かい励ましを中心に"
+            ]
+            selected_approach = approach_perspectives[weekday % len(approach_perspectives)]
+
+            # 気圧情報の文字列化
+            pressure_desc = ""
+            if pressure_info:
+                pressure_desc = f"気圧: {pressure_info.現在気圧}（{pressure_info.気圧変化}）、体調影響: {pressure_info.体調影響}"
+            else:
+                pressure_desc = "気圧情報なし"
+
+            # 月齢情報の文字列化
+            moon_desc = f"{moon_age:.1f}日" if moon_age is not None else "不明"
+
+            prompt = f"""以下の情報をもとに、受験生とご家族に向けた温かい健康アドバイスと応援メッセージを生成してください。
+
+【今日の日付と季節】
+- 日付: {target_date.strftime('%Y年%m月%d日')}
+- 季節: {season_info}
+
+【天気情報】
+- 登校時（8時頃）: {weather_info.登校時_天気}、気温{weather_info.登校時_最高気温}、湿度{weather_info.登校時_湿度}
+- 授業終了時: {weather_info.授業終了時_天気}、気温{weather_info.授業終了時_気温}、湿度{weather_info.授業終了時_湿度}
+- 天気概況: {weather_info.天気概況}
+
+【気圧・月齢情報】
+- {pressure_desc}
+- 月齢: {moon_desc}
+
+【メッセージ作成の要件】
+1. **文字数**: 200文字程度（180-220文字）
+2. **アプローチ**: {selected_approach}
+3. **内容**:
+   - 季節と天気を踏まえた体感表現（例: "晩秋の冷え込み"、"肌寒い朝"）
+   - フィジカル面（体調管理、防寒・防暑対策など）
+   - メンタル面（受験への励まし、不安軽減）
+   - 具体的アドバイス（水分補給、休憩、ストレッチなど）
+4. **トーン**: 温かく、丁寧で、応援する雰囲気
+5. **避けるべき表現**:
+   - 「皆様」「ご家族の皆様」などの直接的な呼びかけ
+   - 堅苦しい敬語
+6. **毎日異なる表現を**: 同じパターンの繰り返しを避け、多様な視点から書く
+
+【出力形式】
+季節と天気を考慮した、受験生とご家族への温かい健康アドバイスと応援メッセージ（200文字程度）"""
+
+            if self.openai_client:
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": """あなたは学校の入試広報部として、受験生とご家族に向けて温かい健康アドバイスを提供する専門家です。
+季節・天気・気圧・月齢を総合的に考慮し、フィジカル（体調管理）とメンタル（心のケア）の両面から、
+具体的で実践的なアドバイスと応援メッセージを、毎日異なる視点で作成してください。
+同じパターンの繰り返しを避け、バリエーション豊かな表現を心がけてください。"""
+                        },
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=400,
+                    temperature=0.8  # バリエーション確保のため高めに設定
+                )
+
+                message = response.choices[0].message.content.strip().strip('"').strip("'")
+
+                # 文字数チェック
+                char_count = len(message)
+                st.info(f"✅ 季節考慮アドバイス生成完了（{char_count}文字）")
+
+                if char_count < 150:
+                    st.warning(f"⚠️ メッセージが短すぎます（{char_count}文字）、フォールバック使用")
+                    return self._generate_fallback_season_message(weather_info, season_info, target_date)
+
+                return message
+
+            else:
+                st.warning("OpenAI APIクライアントが利用できません、フォールバック使用")
+                return self._generate_fallback_season_message(weather_info, season_info, target_date)
+
+        except Exception as e:
+            st.error(f"季節考慮アドバイス生成エラー: {e}")
+            return self._generate_fallback_season_message(weather_info, season_info, target_date)
+
+    def _generate_fallback_season_message(self, weather_info: WeatherInfo, season_info: str, target_date: date) -> str:
+        """季節考慮メッセージのフォールバック生成"""
+        # 季節に基づく基本メッセージ
+        season_advice = ""
+        if "冬" in season_info or "寒" in season_info:
+            season_advice = "寒さが厳しい時期ですので、防寒対策と体調管理を大切にしてください"
+        elif "春" in season_info:
+            season_advice = "過ごしやすい季節ですが、気温の変化に注意して体調を整えましょう"
+        elif "梅雨" in season_info or "蒸し暑" in season_info:
+            season_advice = "湿度が高い時期ですので、こまめな水分補給と室内の換気を心がけましょう"
+        elif "夏" in season_info or "暑" in season_info:
+            season_advice = "暑い時期ですので、熱中症対策と十分な休憩を取りながら学習を進めましょう"
+        elif "秋" in season_info:
+            season_advice = "過ごしやすい季節ですが、朝晩の気温差に注意して体調を管理しましょう"
+        else:
+            season_advice = "季節の変わり目ですので、体調管理に気をつけてください"
+
+        # 天気に基づく補足
+        weather_note = ""
+        if "雨" in weather_info.天気概況:
+            weather_note = "雨の日は気分も沈みがちですが、室内で集中して学習するには良い環境です。"
+        elif "晴" in weather_info.天気概況:
+            weather_note = "晴天で気持ちの良い一日、前向きな気持ちで学習に取り組めそうです。"
+
+        return f"{season_info}となります。{weather_note}{season_advice}。受験勉強は大変ですが、一歩ずつ着実に前進していきましょう。"
+
 

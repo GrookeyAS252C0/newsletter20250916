@@ -80,8 +80,6 @@ class NewsletterFormatter:
         授業終了時_風速風向 = getattr(weather_info, '授業終了時_風速風向', '不明')
         授業終了時刻 = getattr(weather_info, '授業終了時刻', '不明')
 
-        快適具合 = getattr(weather_info, '快適具合', '不明')
-
         result = f"""
 【登校時間（8時頃）】
 天気：{登校時_天気}、気温：{登校時_気温}
@@ -91,7 +89,7 @@ class NewsletterFormatter:
 天気：{授業終了時_天気}、気温：{授業終了時_気温}
 降水確率：{授業終了時_降水確率}、湿度：{授業終了時_湿度}、風：{授業終了時_風速風向}
 
-全体的に{快適具合}一日になりそうです。{moon_info}
+{moon_info}
 
 {heartwarming_message}
 """.strip()
@@ -403,21 +401,38 @@ class NewsletterGenerator:
 ・「ログイン情報変更」のチェックボックスを解除する"""
 
     def _generate_comprehensive_health_message(self, weather_info, pressure_info, target_date: date) -> str:
-        """天気+気圧+月齢の複合的な健康アドバイスメッセージを生成"""
+        """天気+気圧+月齢+季節の複合的な健康アドバイスメッセージを生成（新システム）"""
         try:
-            st.info("🧠 複合的な健康アドバイスメッセージを生成中...")
+            st.info("🧠 季節を考慮した受験生向けアドバイスを生成中...")
 
-            # RAGシステムを使用した高度なメッセージ生成
+            # RAGシステムを使用
             from health_knowledge_rag import HealthKnowledgeRAG
+            from utils import DateUtils
 
             rag_system = HealthKnowledgeRAG(openai_client=self.weather_service.client)
 
             # 月齢データを取得
             moon_age = getattr(self.weather_service, 'latest_moon_age', None)
 
-            # 気圧情報がある場合は総合的なメッセージを生成
+            # 季節情報を取得
+            season_info = DateUtils.get_season_info(target_date)
+            st.info(f"🌸 季節判定: {season_info}")
+
+            # 新しい季節考慮システムでメッセージ生成
+            st.info("🎯 新システム: 季節+天気+気圧+月齢の総合アドバイス生成")
+            season_aware_message = rag_system.generate_season_aware_student_message(
+                weather_info, pressure_info, moon_age, target_date, season_info
+            )
+
+            if season_aware_message and len(season_aware_message.strip()) > 100:
+                st.success(f"✅ 季節考慮アドバイス生成完了（{len(season_aware_message)}文字）")
+                return season_aware_message
+            else:
+                st.warning("新システムでの生成に失敗、フォールバックシステム使用")
+
+            # フォールバック1: 気圧情報がある場合は総合的なメッセージを生成
             if pressure_info:
-                st.info("🌀 気圧情報を含む総合健康アドバイスを生成")
+                st.info("🌀 フォールバック1: 気圧情報を含む総合健康アドバイスを生成")
                 comprehensive_message = rag_system.generate_comprehensive_health_message(
                     weather_info, pressure_info, moon_age, target_date
                 )
@@ -425,11 +440,9 @@ class NewsletterGenerator:
                 if comprehensive_message and len(comprehensive_message.strip()) > 10:
                     st.success("✅ 総合健康アドバイス生成完了")
                     return comprehensive_message
-                else:
-                    st.warning("総合メッセージ生成に失敗、フォールバック使用")
 
-            # フォールバック: 従来の天気+月齢メッセージ
-            st.info("🌤️ 従来の天気+月齢メッセージを生成")
+            # フォールバック2: 従来の天気+月齢メッセージ
+            st.info("🌤️ フォールバック2: 従来の天気+月齢メッセージを生成")
             fallback_message = rag_system.generate_student_focused_message(weather_info, moon_age)
 
             if fallback_message and len(fallback_message.strip()) > 10:
@@ -440,8 +453,8 @@ class NewsletterGenerator:
                 st.warning("RAGメッセージ生成に失敗、基本メッセージ使用")
                 return self.weather_service._generate_legacy_message(weather_info, target_date)
 
-        except ImportError:
-            st.warning("RAGシステムが利用できません、従来方式を使用")
+        except ImportError as ie:
+            st.warning(f"必要なモジュールのインポートに失敗: {ie}")
             return self.weather_service._generate_legacy_message(weather_info, target_date)
         except Exception as e:
             st.error(f"複合メッセージ生成エラー: {e}")

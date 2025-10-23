@@ -128,15 +128,15 @@ class MoonPhaseCalculator:
                 'message': "🌑 今日が新月です",
                 'is_special_day': True,
                 'days_to_next': 0,
-                'next_type': 'new_moon'
+                'next_type': 'full_moon'  # 新月の後は満月に向かう
             }
-        
+
         if is_full_moon_today:
             return {
-                'message': "🌕 今日が満月です", 
+                'message': "🌕 今日が満月です",
                 'is_special_day': True,
                 'days_to_next': 0,
-                'next_type': 'full_moon'
+                'next_type': 'new_moon'  # 満月の後は新月に向かう
             }
         
         # 次の新月・満月までの日数を計算

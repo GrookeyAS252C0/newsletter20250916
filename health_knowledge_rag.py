@@ -1128,8 +1128,31 @@ class HealthKnowledgeRAG:
             else:
                 pressure_desc = "気圧情報なし"
 
-            # 月齢情報の文字列化
-            moon_desc = f"{moon_age:.1f}日" if moon_age is not None else "不明"
+            # 月齢情報の詳細化（moon_phase_calculatorを使用）
+            moon_desc = "不明"
+            moon_phase_detail = ""
+            if moon_age is not None:
+                try:
+                    from src.utils.moon_phase_calculator import moon_calculator
+                    moon_info = moon_calculator.get_moon_phase_info(target_date)
+
+                    # 詳細な月相情報を構築
+                    next_phase_name = "満月" if moon_info.next_phase_type == "full_moon" else "新月"
+
+                    if moon_info.is_special_day:
+                        # 特別な日（新月/満月当日）でも次に向かう月相を明示
+                        moon_phase_detail = f"今日が{moon_info.phase_name}（月齢{moon_age:.1f}日）、これから{next_phase_name}に向かう時期"
+                    else:
+                        moon_phase_detail = f"{moon_info.phase_name}（月齢{moon_age:.1f}日）、{next_phase_name}まで{moon_info.days_to_next_phase}日"
+
+                    moon_desc = moon_phase_detail
+                    st.info(f"🌙 月相詳細: {moon_desc}")
+                except ImportError:
+                    # フォールバック: 月齢のみ
+                    moon_desc = f"{moon_age:.1f}日"
+                except Exception as e:
+                    st.warning(f"月相詳細取得エラー: {e}")
+                    moon_desc = f"{moon_age:.1f}日"
 
             prompt = f"""以下の情報をもとに、受験生とご家族に向けた温かい健康アドバイスと応援メッセージを生成してください。
 
@@ -1144,7 +1167,13 @@ class HealthKnowledgeRAG:
 
 【気圧・月齢情報】
 - {pressure_desc}
-- 月齢: {moon_desc}
+- 月相: {moon_desc}
+
+【重要：月相の理解】
+月齢0日が新月、月齢14-15日が満月です。
+- 月齢0-14日: 新月→満月に向かう期間（月が満ちていく）
+- 月齢15-29日: 満月→新月に向かう期間（月が欠けていく）
+上記の月相情報を正しく理解し、「新月に向かう」「満月に向かう」を間違えないでください。
 
 【メッセージ作成の要件】
 1. **文字数**: 200文字程度（180-220文字）
@@ -1172,7 +1201,12 @@ class HealthKnowledgeRAG:
                             "content": """あなたは学校の入試広報部として、受験生とご家族に向けて温かい健康アドバイスを提供する専門家です。
 季節・天気・気圧・月齢を総合的に考慮し、フィジカル（体調管理）とメンタル（心のケア）の両面から、
 具体的で実践的なアドバイスと応援メッセージを、毎日異なる視点で作成してください。
-同じパターンの繰り返しを避け、バリエーション豊かな表現を心がけてください。"""
+同じパターンの繰り返しを避け、バリエーション豊かな表現を心がけてください。
+
+【重要】月相について：
+- 月相情報に「満月まで○日」とある場合: 新月→満月に向かう期間（月が満ちていく）
+- 月相情報に「新月まで○日」とある場合: 満月→新月に向かう期間（月が欠けていく）
+月相の方向を絶対に間違えないでください。"""
                         },
                         {"role": "user", "content": prompt}
                     ],

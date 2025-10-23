@@ -33,7 +33,7 @@ class MoonPhaseCalculator:
     
     # カウントダウン設定
     COUNTDOWN_DAYS = 3  # 3日前からカウントダウン
-    PHASE_THRESHOLD = 1.0  # 当日判定の閾値
+    PHASE_THRESHOLD = 0.7  # 当日判定の閾値（±0.7日以内）
     
     def __init__(self):
         logger.debug("MoonPhaseCalculator を初期化")
@@ -77,16 +77,17 @@ class MoonPhaseCalculator:
     
     def _calculate_moon_age(self, target_date: date) -> float:
         """月齢を計算"""
-        # 既知の新月日（2000年1月6日 18:14 UTC）を基準
-        known_new_moon = datetime(2000, 1, 6, 18, 14)
+        # より新しい基準新月を使用（2024年1月11日 11:57 UTC）
+        # 誤差蓄積を最小化するため、より近い日付の新月を基準とする
+        known_new_moon = datetime(2024, 1, 11, 11, 57)
         target_datetime = datetime.combine(target_date, datetime.min.time().replace(hour=12))  # 正午で計算
-        
+
         # 経過日数を計算
         days_since_known = (target_datetime - known_new_moon).total_seconds() / (24 * 3600)
-        
+
         # 月齢を計算（0-29.53の範囲）
         moon_age = days_since_known % self.LUNAR_CYCLE
-        
+
         return moon_age
     
     def _get_basic_phase_name(self, moon_age: float) -> str:

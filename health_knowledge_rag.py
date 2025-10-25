@@ -1136,14 +1136,20 @@ class HealthKnowledgeRAG:
                     from src.utils.moon_phase_calculator import moon_calculator
                     moon_info = moon_calculator.get_moon_phase_info(target_date)
 
-                    # 詳細な月相情報を構築
-                    next_phase_name = "満月" if moon_info.next_phase_type == "full_moon" else "新月"
+                    # 月相情報を誤解のない表現に変更
+                    # 方向性を明示的に含めることで、LLMの誤認識を防ぐ
+                    if moon_info.next_phase_type == "full_moon":
+                        # 新月→満月に向かう時期
+                        direction = "月が満ちていく時期（新月→満月）"
+                    else:
+                        # 満月→新月に向かう時期
+                        direction = "月が欠けていく時期（満月→新月）"
 
                     if moon_info.is_special_day:
-                        # 特別な日（新月/満月当日）でも次に向かう月相を明示
-                        moon_phase_detail = f"今日が{moon_info.phase_name}（月齢{moon_age:.1f}日）、これから{next_phase_name}に向かう時期"
+                        moon_phase_detail = f"今日が{moon_info.phase_name}（月齢{moon_age:.1f}日）、{direction}"
                     else:
-                        moon_phase_detail = f"{moon_info.phase_name}（月齢{moon_age:.1f}日）、{next_phase_name}まで{moon_info.days_to_next_phase}日"
+                        next_phase_name = "満月" if moon_info.next_phase_type == "full_moon" else "新月"
+                        moon_phase_detail = f"{moon_info.phase_name}（月齢{moon_age:.1f}日）、{direction}、{next_phase_name}まで{moon_info.days_to_next_phase}日"
 
                     moon_desc = moon_phase_detail
                     st.info(f"🌙 月相詳細: {moon_desc}")
@@ -1169,11 +1175,30 @@ class HealthKnowledgeRAG:
 - {pressure_desc}
 - 月相: {moon_desc}
 
-【重要：月相の理解】
-月齢0日が新月、月齢14-15日が満月です。
-- 月齢0-14日: 新月→満月に向かう期間（月が満ちていく）
-- 月齢15-29日: 満月→新月に向かう期間（月が欠けていく）
-上記の月相情報を正しく理解し、「新月に向かう」「満月に向かう」を間違えないでください。
+【重要：月相の理解 - 絶対に間違えないこと】
+月相情報には、月の満ち欠けの方向が明示されています。
+
+★月相情報の読み方：
+- 「月が満ちていく時期（新月→満月）」と書かれている
+  → これから満月に向かう、月が徐々に明るくなる時期
+  → 表現例：「満月に向かう」「月が満ちていく」「月が明るくなる」
+
+- 「月が欠けていく時期（満月→新月）」と書かれている
+  → これから新月に向かう、月が徐々に暗くなる時期
+  → 表現例：「新月に向かう」「月が欠けていく」「月が暗くなる」
+
+★具体例：
+- 例1: 「三日月（月齢3.3日）、月が満ちていく時期（新月→満月）、満月まで11日」
+  → 正解：「満月に向かう」「月が満ちていく」
+  → 間違い：「新月に向かう」← 絶対禁止！
+
+- 例2: 「十六夜月（月齢17.2日）、月が欠けていく時期（満月→新月）、新月まで12日」
+  → 正解：「新月に向かう」「月が欠けていく」
+  → 間違い：「満月に向かう」← 絶対禁止！
+
+★絶対厳守：
+月相情報に明示された方向（「満ちていく」または「欠けていく」）に従ってください。
+逆の方向を表現することは絶対に禁止です。
 
 【メッセージ作成の要件】
 1. **文字数**: 200文字程度（180-220文字）
@@ -1203,15 +1228,27 @@ class HealthKnowledgeRAG:
 具体的で実践的なアドバイスと応援メッセージを、毎日異なる視点で作成してください。
 同じパターンの繰り返しを避け、バリエーション豊かな表現を心がけてください。
 
-【重要】月相について：
-- 月相情報に「満月まで○日」とある場合: 新月→満月に向かう期間（月が満ちていく）
-- 月相情報に「新月まで○日」とある場合: 満月→新月に向かう期間（月が欠けていく）
-月相の方向を絶対に間違えないでください。"""
+【絶対厳守：月相の方向について】
+月相情報には方向が明示されています。必ず従ってください：
+
+1. 「月が満ちていく時期（新月→満月）」と書かれている
+   → 表現：「満月に向かう」「月が満ちていく」
+   → 禁止：「新月に向かう」は絶対に使用禁止
+
+2. 「月が欠けていく時期（満月→新月）」と書かれている
+   → 表現：「新月に向かう」「月が欠けていく」
+   → 禁止：「満月に向かう」は絶対に使用禁止
+
+具体例：
+✓ 正解：「三日月（月齢3日）、月が満ちていく時期」→「満月に向かう」
+✗ 間違い：「三日月（月齢3日）、月が満ちていく時期」→「新月に向かう」
+
+月相の方向を間違えると、メッセージ全体が無効になります。"""
                         },
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=400,
-                    temperature=0.8  # バリエーション確保のため高めに設定
+                    temperature=0.6  # 月相の正確性を優先しつつバリエーションも確保
                 )
 
                 message = response.choices[0].message.content.strip().strip('"').strip("'")
